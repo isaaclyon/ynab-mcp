@@ -2,8 +2,10 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { YnabClient } from "../ynab/client.js";
 import { jsonResult } from "./result.js";
+import { readOnlyAnnotations } from "./annotations.js";
 import {
   shapeAccounts,
+  shapeCategory,
   shapeCategories,
   shapeMonth,
   shapePlans,
@@ -21,13 +23,6 @@ const date = z
   .string()
   .regex(/^\d{4}-\d{2}-\d{2}$/)
   .describe("Date in YYYY-MM-DD format.");
-
-const readOnlyAnnotations = {
-  readOnlyHint: true,
-  destructiveHint: false,
-  idempotentHint: true,
-  openWorldHint: true,
-} as const;
 
 export function registerReadTools(server: McpServer, ynab: YnabClient): void {
   server.registerTool(
@@ -67,6 +62,21 @@ export function registerReadTools(server: McpServer, ynab: YnabClient): void {
     async ({ plan_id }) => jsonResult(shapeCategories(await ynab.listCategories(plan_id))),
   );
 
+
+
+  server.registerTool(
+    "ynab_get_category",
+    {
+      title: "Get YNAB category",
+      description: "Get one category by ID, including balances, note, and target fields.",
+      inputSchema: {
+        plan_id: planId,
+        category_id: z.string().min(1).describe("Category ID returned by ynab_list_categories."),
+      },
+      annotations: { ...readOnlyAnnotations, title: "Get YNAB category" },
+    },
+    async ({ plan_id, category_id }) => jsonResult(shapeCategory(await ynab.getCategory(plan_id, category_id))),
+  );
   server.registerTool(
     "ynab_get_month",
     {

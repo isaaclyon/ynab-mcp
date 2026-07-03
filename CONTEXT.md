@@ -35,7 +35,7 @@ _Avoid_: calling this a short PIN or using a low-entropy numeric code.
 
 **Read-only tool**: A tool that only performs YNAB `GET` requests or local filtering of fetched data. It must be annotated as read-only in MCP tool metadata.
 
-**Write tool**: A tool that creates, updates, imports, deletes, or otherwise mutates YNAB state. Write tools must be separate from read tools and must not be hidden behind a generic executor.
+**Write tool**: A tool that creates, updates, imports, deletes, or otherwise mutates YNAB state. Write tools are separate from read tools and must not be hidden behind a generic executor. Category/category-group create and update tools are the first write slice; YNAB does not expose delete endpoints for those resources.
 
 **Named YNAB concept tool**: A tool named after user-facing YNAB concepts and tasks, such as listing plans, accounts, categories, months, or transactions.
 _Avoid_: exposing the whole REST API as the primary model-facing interface.
@@ -47,7 +47,7 @@ _Avoid_: exposing the whole REST API as the primary model-facing interface.
 - A **Claude web custom connector** calls the **personal server** over **remote Streamable HTTP**.
 - The **personal server** calls **YNAB** using the server-side **YNAB credential**.
 - **Connector auth** protects the MCP endpoint; it does not replace the **YNAB credential**.
-- **Read-only tools** are the initial slice; **write tools** are future additions with separate schemas and annotations.
+- **Read-only tools** are complemented by explicit **write tools** with separate schemas and annotations.
 - **Named YNAB concept tools** are the default interface; an **escape-hatch endpoint tool** is optional and secondary.
 
 ## Flagged ambiguities

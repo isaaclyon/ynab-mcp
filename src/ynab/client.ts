@@ -4,6 +4,19 @@ export type YnabClientConfig = {
   fetchImpl?: typeof fetch;
 };
 
+export type CategoryGroupInput = {
+  name: string;
+};
+
+export type CategoryInput = {
+  name?: string | null;
+  note?: string | null;
+  category_group_id?: string;
+  goal_target?: number | null;
+  goal_target_date?: string | null;
+  goal_needs_whole_amount?: boolean | null;
+};
+
 export class YnabApiError extends Error {
   constructor(
     message: string,
@@ -27,51 +40,89 @@ export class YnabClient {
   }
 
   listPlans(): Promise<unknown> {
-    return this.get("/plans");
+    return this.request("GET", "/plans");
   }
 
   listAccounts(planId: string): Promise<unknown> {
-    return this.get(`/plans/${encodeURIComponent(planId)}/accounts`);
+    return this.request("GET", `/plans/${encodeURIComponent(planId)}/accounts`);
   }
 
   listCategories(planId: string): Promise<unknown> {
-    return this.get(`/plans/${encodeURIComponent(planId)}/categories`);
+    return this.request("GET", `/plans/${encodeURIComponent(planId)}/categories`);
+  }
+
+  getCategory(planId: string, categoryId: string): Promise<unknown> {
+    return this.request("GET", `/plans/${encodeURIComponent(planId)}/categories/${encodeURIComponent(categoryId)}`);
+  }
+
+  createCategory(planId: string, category: CategoryInput & { name: string; category_group_id: string }): Promise<unknown> {
+    return this.request("POST", `/plans/${encodeURIComponent(planId)}/categories`, undefined, { category });
+  }
+
+  updateCategory(planId: string, categoryId: string, category: CategoryInput): Promise<unknown> {
+    return this.request("PATCH", `/plans/${encodeURIComponent(planId)}/categories/${encodeURIComponent(categoryId)}`, undefined, {
+      category,
+    });
+  }
+
+  createCategoryGroup(planId: string, categoryGroup: CategoryGroupInput): Promise<unknown> {
+    return this.request("POST", `/plans/${encodeURIComponent(planId)}/category_groups`, undefined, {
+      category_group: categoryGroup,
+    });
+  }
+
+  updateCategoryGroup(planId: string, categoryGroupId: string, categoryGroup: CategoryGroupInput): Promise<unknown> {
+    return this.request(
+      "PATCH",
+      `/plans/${encodeURIComponent(planId)}/category_groups/${encodeURIComponent(categoryGroupId)}`,
+      undefined,
+      { category_group: categoryGroup },
+    );
   }
 
   getMonth(planId: string, month: string): Promise<unknown> {
-    return this.get(`/plans/${encodeURIComponent(planId)}/months/${encodeURIComponent(month)}`);
+    return this.request("GET", `/plans/${encodeURIComponent(planId)}/months/${encodeURIComponent(month)}`);
   }
 
   listTransactions(planId: string, sinceDate?: string): Promise<unknown> {
     const query = sinceDate ? { since_date: sinceDate } : undefined;
-    return this.get(`/plans/${encodeURIComponent(planId)}/transactions`, query);
+    return this.request("GET", `/plans/${encodeURIComponent(planId)}/transactions`, query);
   }
 
   getTransaction(planId: string, transactionId: string): Promise<unknown> {
-    return this.get(
-      `/plans/${encodeURIComponent(planId)}/transactions/${encodeURIComponent(transactionId)}`,
-    );
+    return this.request("GET", `/plans/${encodeURIComponent(planId)}/transactions/${encodeURIComponent(transactionId)}`);
   }
 
-  private async get(path: string, query?: Record<string, string>): Promise<unknown> {
+  private async request(
+    method: "GET" | "POST" | "PATCH",
+    path: string,
+    query?: Record<string, string>,
+    body?: unknown,
+  ): Promise<unknown> {
     const url = new URL(path.replace(/^\//, ""), appendSlash(this.baseUrl));
     for (const [key, value] of Object.entries(query ?? {})) {
       url.searchParams.set(key, value);
     }
 
+    const headers: Record<string, string> = {
+      Accept: "application/json",
+      Authorization: `Bearer ${this.accessToken}`,
+    };
+    if (body !== undefined) {
+      headers["Content-Type"] = "application/json";
+    }
+
     const response = await this.fetchImpl(url, {
-      method: "GET",
-      headers: {
-        Accept: "application/json",
-        Authorization: `Bearer ${this.accessToken}`,
-      },
+      method,
+      headers,
+      ...(body === undefined ? {} : { body: JSON.stringify(body) }),
     });
 
-    const body = await readJsonBody(response);
+    const responseBody = await readJsonBody(response);
     if (!response.ok) {
-      throw new YnabApiError(`YNAB API request failed with status ${response.status}`, response.status, body);
+      throw new YnabApiError(`YNAB API request failed with status ${response.status}`, response.status, responseBody);
     }
-    return body;
+    return responseBody;
   }
 }
 

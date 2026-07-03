@@ -14,14 +14,22 @@ export function shapeAccounts(response: unknown, includeClosed: boolean): unknow
   return { accounts };
 }
 
+export function shapeCategory(response: unknown): unknown {
+  const category = getRecord(response, ["data", "category"]);
+  return category ? { category: shapeCategoryRecord(category) } : response;
+}
+
+export function shapeCategoryGroup(response: unknown): unknown {
+  const group = getRecord(response, ["data", "category_group"]);
+  return group ? { category_group: shapeCategoryGroupRecord(group) } : response;
+}
+
 export function shapeCategories(response: unknown): unknown {
   const groups = getArray(response, ["data", "category_groups"]);
   return {
     category_groups: groups.map((group) => ({
-      ...pick(group, ["id", "name", "hidden", "deleted"]),
-      categories: getArray(group, ["categories"]).map((category) =>
-        pick(category, ["id", "name", "hidden", "original_category_group_id", "budgeted", "activity", "balance", "deleted"]),
-      ),
+      ...shapeCategoryGroupRecord(group),
+      categories: getArray(group, ["categories"]).map(shapeCategoryRecord),
     })),
   };
 }
@@ -60,6 +68,31 @@ export type TransactionFilters = {
   accountId?: string;
   categoryId?: string;
 };
+
+function shapeCategoryRecord(category: JsonRecord): JsonRecord {
+  return pick(category, [
+    "id",
+    "category_group_id",
+    "category_group_name",
+    "name",
+    "note",
+    "hidden",
+    "internal",
+    "original_category_group_id",
+    "budgeted",
+    "activity",
+    "balance",
+    "goal_type",
+    "goal_target",
+    "goal_target_date",
+    "goal_needs_whole_amount",
+    "deleted",
+  ]);
+}
+
+function shapeCategoryGroupRecord(group: JsonRecord): JsonRecord {
+  return pick(group, ["id", "name", "hidden", "internal", "deleted"]);
+}
 
 function shapeTransactionRecord(transaction: JsonRecord): JsonRecord {
   return pick(transaction, [

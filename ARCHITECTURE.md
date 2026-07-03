@@ -2,7 +2,7 @@
 
 ## System goal
 
-Expose a small, safe set of personal YNAB read capabilities to Claude web through an MCP server hosted on the owner's Ubuntu mini PC over public HTTPS, while preserving a clean path to future write tools.
+Expose a small, safe set of personal YNAB capabilities through an MCP server, currently used locally over Streamable HTTP, while preserving a clean path to future Claude web hosting over public HTTPS.
 
 ## Bird's-eye view
 
@@ -37,7 +37,7 @@ YNAB API (`https://api.ynab.com/v1`)
 ### Tool modules
 
 - Responsibility: Define named YNAB concept tools with tight schemas, annotations, and compact result shaping.
-- Important boundary: Read tools and future write tools live in separate modules.
+- Important boundary: Read tools and write tools live in separate modules.
 - What they must not own: generic arbitrary endpoint execution as the primary API.
 
 ### Hosting boundary
@@ -52,7 +52,7 @@ YNAB API (`https://api.ynab.com/v1`)
 - `MCP server -> YNAB client` means typed internal calls or a constrained request helper.
 - `YNAB client -> YNAB API` means HTTPS requests with the server-side YNAB credential.
 - Read tools must not call write endpoints.
-- Future write tools must not be exposed through a generic read/write executor.
+- Write tools must not be exposed through a generic read/write executor.
 - Cross-cutting concerns enter through configuration, auth middleware, and shared result/error helpers.
 
 ## Stable invariants
@@ -64,6 +64,7 @@ YNAB API (`https://api.ynab.com/v1`)
 - Claude web is the optimized runtime target, so public HTTPS and remote MCP behavior matter more than local stdio convenience.
 - New public tools are named around YNAB concepts unless a deliberate escape hatch is added.
 - Read and write operations are separate tools and separate modules.
+- Category/category-group writes cover create and update only because YNAB does not expose delete endpoints for those resources.
 - Every tool has MCP annotations for at least title, read-only/destructive behavior, and external-world access.
 - Tool results should be compact enough for Claude web limits and include IDs needed for follow-up calls.
 - The project uses `plans`, not `budgets`, in new user-facing schemas and docs.

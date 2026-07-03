@@ -2,7 +2,7 @@
 
 Personal TypeScript MCP server for using Claude with YNAB data.
 
-The current target is a **Claude web custom connector** over remote Streamable HTTP, hosted on the owner's Ubuntu mini PC over public HTTPS. The server keeps the YNAB Personal Access Token server-side and protects public MCP access with private OAuth.
+The current implementation is used locally over Streamable HTTP, with a path to a **Claude web custom connector** over public HTTPS later. The server keeps the YNAB Personal Access Token server-side and protects public MCP access with private OAuth.
 
 ## Current implementation
 
@@ -16,15 +16,21 @@ The current target is a **Claude web custom connector** over remote Streamable H
   - in-memory access/refresh tokens.
 - Dev-only auth bypass for localhost/test runs via `DEV_AUTH_BYPASS=true`.
 - Server-side YNAB client boundary using `YNAB_ACCESS_TOKEN`.
-- Initial read-only named tools:
+- Named read tools:
   - `ynab_list_plans`
   - `ynab_list_accounts`
   - `ynab_list_categories`
   - `ynab_get_month`
   - `ynab_search_transactions`
   - `ynab_get_transaction`
+  - `ynab_get_category`
+- Category/category-group write tools:
+  - `ynab_create_category`
+  - `ynab_update_category`
+  - `ynab_create_category_group`
+  - `ynab_update_category_group`
 
-No write tools are implemented yet.
+YNAB does not expose delete endpoints for categories or category groups, so delete tools are not implemented.
 
 ## Local setup
 
@@ -47,7 +53,7 @@ npm run build
 npm start
 ```
 
-`npm run smoke` starts an in-process Streamable HTTP server with mocked YNAB responses and verifies initialize, `tools/list`, and one read-only tool call.
+`npm run smoke` starts an in-process Streamable HTTP server with mocked YNAB responses and verifies initialize, `tools/list`, and one read-only tool call. The automated test suite also covers category write tool calls.
 
 ## Documentation map
 
