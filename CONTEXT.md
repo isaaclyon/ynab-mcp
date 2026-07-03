@@ -10,6 +10,9 @@ _Avoid_: treating YNAB as a local database; it is an external SaaS API with rate
 **Plan**: YNAB's current API term for what older docs and integrations often called a budget. API paths now use `/plans/{plan_id}`; legacy `/budgets/{budget_id}` paths are not the primary project language.
 _Avoid_: introducing `budget_id` in new tool schemas unless directly documenting legacy API compatibility.
 
+**Month**: User-facing month inputs use `YYYY-MM`, but YNAB's month API paths identify months as the first day of the month (`YYYY-MM-01`). Tool schemas should stay user-friendly and the YNAB client boundary should convert month inputs before upstream requests.
+_Avoid_: exposing `YYYY-MM-01` as the normal tool input shape unless directly matching a raw YNAB API response.
+
 **Personal server**: This MCP server is for one owner, backed by that owner's YNAB account and hosted on that owner's infrastructure.
 _Avoid_: assuming multi-tenant storage, public directory submission, or other-user onboarding unless the roadmap changes.
 
@@ -35,7 +38,7 @@ _Avoid_: calling this a short PIN or using a low-entropy numeric code.
 
 **Read-only tool**: A tool that only performs YNAB `GET` requests or local filtering of fetched data. It must be annotated as read-only in MCP tool metadata.
 
-**Write tool**: A tool that creates, updates, imports, deletes, or otherwise mutates YNAB state. Write tools are separate from read tools and must not be hidden behind a generic executor. Current write slices cover category/category-group create/update, payee create/update, month/category budgeted amount update, and single transaction create/update; YNAB does not expose delete endpoints for categories or category groups.
+**Write tool**: A tool that creates, updates, imports, deletes, or otherwise mutates YNAB state. Write tools are separate from read tools and must not be hidden behind a generic executor. Current write slices cover category/category-group create/update, payee create/update, month/category budgeted amount update, and single transaction create/update/delete; YNAB does not expose delete endpoints for categories or category groups.
 
 **Named YNAB concept tool**: A tool named after user-facing YNAB concepts and tasks, such as listing plans, accounts, categories, months, or transactions.
 _Avoid_: exposing the whole REST API as the primary model-facing interface.

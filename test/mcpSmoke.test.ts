@@ -38,6 +38,10 @@ describe("MCP smoke", () => {
     expect(tools.tools.map((tool) => tool.name)).toContain("ynab_create_category");
     expect(tools.tools.map((tool) => tool.name)).toContain("ynab_create_transaction");
     expect(tools.tools.map((tool) => tool.name)).toContain("ynab_update_transaction");
+    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_delete_transaction");
+    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_list_category_transactions");
+    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_list_payee_transactions");
+    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_list_month_transactions");
     expect(tools.tools.map((tool) => tool.name)).toContain("ynab_list_payees");
     expect(tools.tools.map((tool) => tool.name)).toContain("ynab_get_payee");
     expect(tools.tools.map((tool) => tool.name)).toContain("ynab_create_payee");
@@ -72,6 +76,17 @@ describe("MCP smoke", () => {
     expect(tools.tools.find((tool) => tool.name === "ynab_create_transaction")?.annotations).toMatchObject({
       readOnlyHint: false,
       destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    });
+    expect(tools.tools.find((tool) => tool.name === "ynab_list_category_transactions")?.annotations).toMatchObject({
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: true,
+    });
+    expect(tools.tools.find((tool) => tool.name === "ynab_delete_transaction")?.annotations).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: true,
       idempotentHint: false,
       openWorldHint: true,
     });
@@ -250,6 +265,65 @@ describe("MCP smoke", () => {
     await client.close();
   });
 
+  it("calls scoped transaction read tools and destructive delete through Streamable HTTP", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async (url, init) => {
+      const requestUrl = new URL(String(url));
+      if (requestUrl.pathname === "/v1/plans/plan-1/categories/cat-1/transactions" && init?.method === "GET") {
+        return jsonResponse({
+          data: {
+            transactions: [
+              {
+                id: "txn-cat-1",
+                date: "2026-07-03",
+                amount: -12340,
+                account_id: "account-1",
+                account_name: "Checking",
+                payee_id: "payee-1",
+                payee_name: "Coffee Shop",
+                category_id: "cat-1",
+                category_name: "Coffee",
+                memo: "Beans",
+                deleted: false,
+              },
+            ],
+          },
+        });
+      }
+      if (requestUrl.pathname === "/v1/plans/plan-1/payees/payee-1/transactions" && init?.method === "GET") {
+        return jsonResponse({ data: { transactions: [{ id: "txn-payee-1", payee_id: "payee-1", payee_name: "Coffee Shop" }] } });
+      }
+      if (requestUrl.pathname === "/v1/plans/plan-1/months/2026-07-01/transactions" && init?.method === "GET") {
+        return jsonResponse({ data: { transactions: [{ id: "txn-month-1", date: "2026-07-03", amount: -5000 }] } });
+      }
+      if (requestUrl.pathname === "/v1/plans/plan-1/transactions/txn-cat-1" && init?.method === "DELETE") {
+        return jsonResponse({ data: { transaction: { id: "txn-cat-1", deleted: true } } });
+      }
+      return jsonResponse({ error: { detail: `Unhandled ${init?.method} ${requestUrl.pathname}` } }, 404);
+    });
+    const app = createApp(testConfig({ devAuthBypass: true }), { fetchImpl });
+    const url = await listen(app);
+
+    const transport = new StreamableHTTPClientTransport(new URL("/mcp", url));
+    const client = new Client({ name: "scoped-transaction-smoke-test", version: "0.1.0" });
+    await client.connect(transport);
+
+    expect(JSON.parse(firstText(await client.callTool({ name: "ynab_list_category_transactions", arguments: { plan_id: "plan-1", category_id: "cat-1" } }, CallToolResultSchema))) as unknown).toMatchObject({
+      transactions: [{ id: "txn-cat-1", category_id: "cat-1", payee_name: "Coffee Shop" }],
+    });
+    expect(JSON.parse(firstText(await client.callTool({ name: "ynab_list_payee_transactions", arguments: { plan_id: "plan-1", payee_id: "payee-1" } }, CallToolResultSchema))) as unknown).toMatchObject({
+      transactions: [{ id: "txn-payee-1", payee_id: "payee-1" }],
+    });
+    expect(JSON.parse(firstText(await client.callTool({ name: "ynab_list_month_transactions", arguments: { plan_id: "plan-1", month: "2026-07" } }, CallToolResultSchema))) as unknown).toMatchObject({
+      transactions: [{ id: "txn-month-1", date: "2026-07-03" }],
+    });
+    expect(JSON.parse(firstText(await client.callTool({ name: "ynab_delete_transaction", arguments: { plan_id: "plan-1", transaction_id: "txn-cat-1" } }, CallToolResultSchema))) as unknown).toEqual({
+      transaction: { id: "txn-cat-1", deleted: true },
+    });
+    expect(fetchImpl.mock.calls.map(([, init]) => init?.method)).toEqual(["GET", "GET", "GET", "DELETE"]);
+
+    await client.close();
+  });
+
   it("calls month/category budgeting tools through Streamable HTTP", async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async (url, init) => {
       const requestUrl = new URL(String(url));
@@ -271,7 +345,7 @@ describe("MCP smoke", () => {
           },
         });
       }
-      if (requestUrl.pathname === "/v1/plans/plan-1/months/2026-07/categories/cat-1" && init?.method === "GET") {
+      if (requestUrl.pathname === "/v1/plans/plan-1/months/2026-07-01/categories/cat-1" && init?.method === "GET") {
         return jsonResponse({
           data: {
             category: {
@@ -286,7 +360,7 @@ describe("MCP smoke", () => {
           },
         });
       }
-      if (requestUrl.pathname === "/v1/plans/plan-1/months/2026-07/categories/cat-1" && init?.method === "PATCH") {
+      if (requestUrl.pathname === "/v1/plans/plan-1/months/2026-07-01/categories/cat-1" && init?.method === "PATCH") {
         return jsonResponse({
           data: {
             category: {
@@ -465,6 +539,43 @@ describe("MCP smoke", () => {
     );
     expect(payeeResult.isError).toBe(true);
     expect(firstText(payeeResult)).toContain("either payee_id or payee_name");
+    expect(fetchImpl).not.toHaveBeenCalled();
+
+    await client.close();
+  });
+
+  it("rejects invalid scoped transaction and delete inputs before calling YNAB", async () => {
+    const fetchImpl = vi.fn<typeof fetch>();
+    const app = createApp(testConfig({ devAuthBypass: true }), { fetchImpl });
+    const url = await listen(app);
+
+    const transport = new StreamableHTTPClientTransport(new URL("/mcp", url));
+    const client = new Client({ name: "invalid-scoped-transactions-smoke-test", version: "0.1.0" });
+    await client.connect(transport);
+
+    const categoryResult = await client.callTool(
+      { name: "ynab_list_category_transactions", arguments: { plan_id: "plan-1", category_id: "   " } },
+      CallToolResultSchema,
+    );
+    expect(categoryResult.isError).toBe(true);
+
+    const payeeResult = await client.callTool(
+      { name: "ynab_list_payee_transactions", arguments: { plan_id: "plan-1", payee_id: "   " } },
+      CallToolResultSchema,
+    );
+    expect(payeeResult.isError).toBe(true);
+
+    const monthResult = await client.callTool(
+      { name: "ynab_list_month_transactions", arguments: { plan_id: "plan-1", month: "2026-13" } },
+      CallToolResultSchema,
+    );
+    expect(monthResult.isError).toBe(true);
+
+    const deleteResult = await client.callTool(
+      { name: "ynab_delete_transaction", arguments: { plan_id: "plan-1", transaction_id: "   " } },
+      CallToolResultSchema,
+    );
+    expect(deleteResult.isError).toBe(true);
     expect(fetchImpl).not.toHaveBeenCalled();
 
     await client.close();

@@ -18,9 +18,13 @@ import {
   type TransactionFilters,
 } from "./shaping.js";
 
-const planId = z.string().min(1).describe("YNAB plan ID returned by ynab_list_plans.");
+const planId = z.string().trim().min(1).describe("YNAB plan ID returned by ynab_list_plans.");
+const categoryId = z.string().trim().min(1).describe("Category ID returned by ynab_list_categories.");
+const payeeId = z.string().trim().min(1).describe("Payee ID returned by ynab_list_payees.");
+const transactionId = z.string().trim().min(1).describe("Transaction ID returned by ynab_search_transactions or transaction list tools.");
 const month = z
   .string()
+  .trim()
   .regex(/^\d{4}-(0[1-9]|1[0-2])$/)
   .describe("Month in YYYY-MM format.");
 const date = z
@@ -73,7 +77,7 @@ export function registerReadTools(server: McpServer, ynab: YnabClient): void {
       description: "Get one category by ID, including balances, note, and target fields.",
       inputSchema: {
         plan_id: planId,
-        category_id: z.string().min(1).describe("Category ID returned by ynab_list_categories."),
+        category_id: categoryId,
       },
       annotations: { ...readOnlyAnnotations, title: "Get YNAB category" },
     },
@@ -98,7 +102,7 @@ export function registerReadTools(server: McpServer, ynab: YnabClient): void {
       description: "Get one payee by ID for a YNAB plan.",
       inputSchema: {
         plan_id: planId,
-        payee_id: z.string().min(1).describe("Payee ID returned by ynab_list_payees."),
+        payee_id: payeeId,
       },
       annotations: { ...readOnlyAnnotations, title: "Get YNAB payee" },
     },
@@ -135,7 +139,7 @@ export function registerReadTools(server: McpServer, ynab: YnabClient): void {
       inputSchema: {
         plan_id: planId,
         month,
-        category_id: z.string().min(1).describe("Category ID returned by ynab_list_categories or ynab_get_month."),
+        category_id: categoryId.describe("Category ID returned by ynab_list_categories or ynab_get_month."),
       },
       annotations: { ...readOnlyAnnotations, title: "Get YNAB month category" },
     },
@@ -171,13 +175,49 @@ export function registerReadTools(server: McpServer, ynab: YnabClient): void {
   );
 
   server.registerTool(
+    "ynab_list_category_transactions",
+    {
+      title: "List YNAB category transactions",
+      description: "List transactions assigned to one category in a YNAB plan. Returns compact transaction records.",
+      inputSchema: { plan_id: planId, category_id: categoryId, limit: z.number().int().min(1).max(100).default(25) },
+      annotations: { ...readOnlyAnnotations, title: "List YNAB category transactions" },
+    },
+    async ({ plan_id, category_id, limit }) =>
+      jsonResult(shapeTransactions(await ynab.listCategoryTransactions(plan_id, category_id), { limit })),
+  );
+
+  server.registerTool(
+    "ynab_list_payee_transactions",
+    {
+      title: "List YNAB payee transactions",
+      description: "List transactions for one payee in a YNAB plan. Returns compact transaction records.",
+      inputSchema: { plan_id: planId, payee_id: payeeId, limit: z.number().int().min(1).max(100).default(25) },
+      annotations: { ...readOnlyAnnotations, title: "List YNAB payee transactions" },
+    },
+    async ({ plan_id, payee_id, limit }) =>
+      jsonResult(shapeTransactions(await ynab.listPayeeTransactions(plan_id, payee_id), { limit })),
+  );
+
+  server.registerTool(
+    "ynab_list_month_transactions",
+    {
+      title: "List YNAB month transactions",
+      description: "List transactions for one YYYY-MM month in a YNAB plan. Returns compact transaction records.",
+      inputSchema: { plan_id: planId, month, limit: z.number().int().min(1).max(100).default(25) },
+      annotations: { ...readOnlyAnnotations, title: "List YNAB month transactions" },
+    },
+    async ({ plan_id, month: monthValue, limit }) =>
+      jsonResult(shapeTransactions(await ynab.listMonthTransactions(plan_id, monthValue), { limit })),
+  );
+
+  server.registerTool(
     "ynab_get_transaction",
     {
       title: "Get YNAB transaction",
       description: "Get one YNAB transaction by ID for a plan.",
       inputSchema: {
         plan_id: planId,
-        transaction_id: z.string().min(1).describe("Transaction ID returned by ynab_search_transactions."),
+        transaction_id: transactionId.describe("Transaction ID returned by ynab_search_transactions or transaction list tools."),
       },
       annotations: { ...readOnlyAnnotations, title: "Get YNAB transaction" },
     },

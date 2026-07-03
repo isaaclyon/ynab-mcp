@@ -18,3 +18,10 @@ export const updateAnnotations = {
   idempotentHint: true,
   openWorldHint: true,
 } as const;
+
+export const deleteAnnotations = {
+  readOnlyHint: false,
+  destructiveHint: true,
+  idempotentHint: false,
+  openWorldHint: true,
+} as const;

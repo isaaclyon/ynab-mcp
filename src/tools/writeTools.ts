@@ -1,19 +1,20 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { YnabClient } from "../ynab/client.js";
-import { createAnnotations, updateAnnotations } from "./annotations.js";
+import { createAnnotations, deleteAnnotations, updateAnnotations } from "./annotations.js";
 import { jsonResult } from "./result.js";
 import { shapeCategory, shapeCategoryGroup, shapeMonthCategory, shapePayee, shapeTransactionWrite } from "./shaping.js";
 
-const planId = z.string().min(1).describe("YNAB plan ID returned by ynab_list_plans.");
+const planId = z.string().trim().min(1).describe("YNAB plan ID returned by ynab_list_plans.");
 const month = z
   .string()
+  .trim()
   .regex(/^\d{4}-(0[1-9]|1[0-2])$/)
   .describe("Month in YYYY-MM format.");
-const categoryGroupId = z.string().min(1).describe("YNAB category group ID returned by ynab_list_categories.");
-const categoryId = z.string().min(1).describe("YNAB category ID returned by ynab_list_categories.");
-const accountId = z.string().min(1).describe("YNAB account ID returned by ynab_list_accounts.");
-const transactionId = z.string().min(1).describe("YNAB transaction ID returned by ynab_search_transactions.");
+const categoryGroupId = z.string().trim().min(1).describe("YNAB category group ID returned by ynab_list_categories.");
+const categoryId = z.string().trim().min(1).describe("YNAB category ID returned by ynab_list_categories.");
+const accountId = z.string().trim().min(1).describe("YNAB account ID returned by ynab_list_accounts.");
+const transactionId = z.string().trim().min(1).describe("YNAB transaction ID returned by ynab_search_transactions or transaction list tools.");
 const categoryName = z.string().min(1).max(50).describe("Category name. YNAB limits names to 50 characters.");
 const groupName = z.string().min(1).max(50).describe("Category group name. YNAB limits names to 50 characters.");
 const nullableNote = z.string().max(500).nullable().optional().describe("Category note. Pass null to clear an existing note.");
@@ -247,6 +248,18 @@ export function registerWriteTools(server: McpServer, ynab: YnabClient): void {
       }
       return jsonResult(shapeTransactionWrite(await ynab.updateTransaction(plan_id, transaction_id, transaction)));
     },
+  );
+
+  server.registerTool(
+    "ynab_delete_transaction",
+    {
+      title: "Delete YNAB transaction",
+      description: "Permanently delete a single YNAB transaction. This is destructive; inspect the transaction first when possible.",
+      inputSchema: { plan_id: planId, transaction_id: transactionId },
+      annotations: { ...deleteAnnotations, title: "Delete YNAB transaction" },
+    },
+    async ({ plan_id, transaction_id }) =>
+      jsonResult(shapeTransactionWrite(await ynab.deleteTransaction(plan_id, transaction_id))),
   );
 }
 

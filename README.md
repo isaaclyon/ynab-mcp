@@ -28,6 +28,9 @@ The current implementation is used locally over Streamable HTTP, with a path to 
   - `ynab_get_month_category`
   - `ynab_get_transaction`
   - `ynab_search_transactions`
+  - `ynab_list_category_transactions`
+  - `ynab_list_payee_transactions`
+  - `ynab_list_month_transactions`
 - Write tools:
   - `ynab_create_category`
   - `ynab_update_category`
@@ -38,8 +41,9 @@ The current implementation is used locally over Streamable HTTP, with a path to 
   - `ynab_update_month_category`
   - `ynab_create_transaction`
   - `ynab_update_transaction`
+  - `ynab_delete_transaction`
 
-YNAB does not expose delete endpoints for categories or category groups, so delete tools are not implemented.
+YNAB does not expose delete endpoints for categories or category groups, so category/category-group delete tools are not implemented.
 
 ## Local setup
 
@@ -62,7 +66,7 @@ npm run build
 npm start
 ```
 
-`npm run smoke` starts an in-process Streamable HTTP server with mocked YNAB responses and verifies initialize, `tools/list`, and one read-only tool call. The automated test suite also covers category, payee, month/category budgeting, and transaction write tool calls.
+`npm run smoke` starts an in-process Streamable HTTP server with mocked YNAB responses and verifies initialize, `tools/list`, and one read-only tool call. The automated test suite also covers category, payee, month/category budgeting, scoped transaction, and transaction write/delete tool calls.
 
 ## Documentation map
 

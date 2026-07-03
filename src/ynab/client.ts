@@ -121,7 +121,7 @@ export class YnabClient {
   }
 
   getMonth(planId: string, month: string): Promise<unknown> {
-    return this.request("GET", `/plans/${encodeURIComponent(planId)}/months/${encodeURIComponent(month)}`);
+    return this.request("GET", `/plans/${encodeURIComponent(planId)}/months/${encodeURIComponent(toYnabMonthDate(month))}`);
   }
 
   listMonths(planId: string): Promise<unknown> {
@@ -131,14 +131,14 @@ export class YnabClient {
   getMonthCategory(planId: string, month: string, categoryId: string): Promise<unknown> {
     return this.request(
       "GET",
-      `/plans/${encodeURIComponent(planId)}/months/${encodeURIComponent(month)}/categories/${encodeURIComponent(categoryId)}`,
+      `/plans/${encodeURIComponent(planId)}/months/${encodeURIComponent(toYnabMonthDate(month))}/categories/${encodeURIComponent(categoryId)}`,
     );
   }
 
   updateMonthCategory(planId: string, month: string, categoryId: string, category: MonthCategoryInput): Promise<unknown> {
     return this.request(
       "PATCH",
-      `/plans/${encodeURIComponent(planId)}/months/${encodeURIComponent(month)}/categories/${encodeURIComponent(categoryId)}`,
+      `/plans/${encodeURIComponent(planId)}/months/${encodeURIComponent(toYnabMonthDate(month))}/categories/${encodeURIComponent(categoryId)}`,
       undefined,
       { category },
     );
@@ -147,6 +147,21 @@ export class YnabClient {
   listTransactions(planId: string, sinceDate?: string): Promise<unknown> {
     const query = sinceDate ? { since_date: sinceDate } : undefined;
     return this.request("GET", `/plans/${encodeURIComponent(planId)}/transactions`, query);
+  }
+
+  listCategoryTransactions(planId: string, categoryId: string): Promise<unknown> {
+    return this.request(
+      "GET",
+      `/plans/${encodeURIComponent(planId)}/categories/${encodeURIComponent(categoryId)}/transactions`,
+    );
+  }
+
+  listPayeeTransactions(planId: string, payeeId: string): Promise<unknown> {
+    return this.request("GET", `/plans/${encodeURIComponent(planId)}/payees/${encodeURIComponent(payeeId)}/transactions`);
+  }
+
+  listMonthTransactions(planId: string, month: string): Promise<unknown> {
+    return this.request("GET", `/plans/${encodeURIComponent(planId)}/months/${encodeURIComponent(toYnabMonthDate(month))}/transactions`);
   }
 
   getTransaction(planId: string, transactionId: string): Promise<unknown> {
@@ -163,8 +178,12 @@ export class YnabClient {
     });
   }
 
+  deleteTransaction(planId: string, transactionId: string): Promise<unknown> {
+    return this.request("DELETE", `/plans/${encodeURIComponent(planId)}/transactions/${encodeURIComponent(transactionId)}`);
+  }
+
   private async request(
-    method: "GET" | "POST" | "PATCH" | "PUT",
+    method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE",
     path: string,
     query?: Record<string, string>,
     body?: unknown,
@@ -202,6 +221,10 @@ function appendSlash(url: URL): URL {
     copy.pathname = `${copy.pathname}/`;
   }
   return copy;
+}
+
+function toYnabMonthDate(month: string): string {
+  return `${month}-01`;
 }
 
 async function readJsonBody(response: Response): Promise<unknown> {
