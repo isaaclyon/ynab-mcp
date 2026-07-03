@@ -1,0 +1,60 @@
+# YNAB MCP
+
+Personal TypeScript MCP server for using Claude with YNAB data.
+
+The current target is a **Claude web custom connector** over remote Streamable HTTP, hosted on the owner's Ubuntu mini PC over public HTTPS. The server keeps the YNAB Personal Access Token server-side and protects public MCP access with private OAuth.
+
+## Current implementation
+
+- TypeScript / Node.js / Express.
+- MCP Streamable HTTP endpoint at `POST /mcp`.
+- Private OAuth scaffold:
+  - owner-passphrase-gated `/authorize` page,
+  - auth-code + PKCE `/token` exchange,
+  - CIMD metadata support via `/.well-known/oauth-authorization-server`,
+  - protected-resource metadata at `/.well-known/oauth-protected-resource/mcp`,
+  - in-memory access/refresh tokens.
+- Dev-only auth bypass for localhost/test runs via `DEV_AUTH_BYPASS=true`.
+- Server-side YNAB client boundary using `YNAB_ACCESS_TOKEN`.
+- Initial read-only named tools:
+  - `ynab_list_plans`
+  - `ynab_list_accounts`
+  - `ynab_list_categories`
+  - `ynab_get_month`
+  - `ynab_search_transactions`
+  - `ynab_get_transaction`
+
+No write tools are implemented yet.
+
+## Local setup
+
+```bash
+npm install
+cp .env.example .env
+# edit .env with YNAB_ACCESS_TOKEN, OWNER_PASSPHRASE, PUBLIC_BASE_URL
+npm run dev
+```
+
+For local MCP development only, set `DEV_AUTH_BYPASS=true`. This is rejected in production config and only bypasses auth for local requests.
+
+## Scripts
+
+```bash
+npm run typecheck
+npm test
+npm run smoke
+npm run build
+npm start
+```
+
+`npm run smoke` starts an in-process Streamable HTTP server with mocked YNAB responses and verifies initialize, `tools/list`, and one read-only tool call.
+
+## Documentation map
+
+- `CONTEXT.md` — shared project language and naming discipline.
+- `ARCHITECTURE.md` — current system shape and boundaries.
+- `docs/adr/` — durable decisions and their tradeoffs.
+- `ROADMAP.md` — medium-term sequencing.
+- `docs/plans/` — temporary implementation plans and open questions.
+- `docs/guidelines/engineering-standards.md` — repo-wide quality expectations.
+- `AGENTS.md` — coding-agent workflow rules.
