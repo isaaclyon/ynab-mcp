@@ -3,9 +3,13 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { YnabClient } from "../ynab/client.js";
 import { createAnnotations, updateAnnotations } from "./annotations.js";
 import { jsonResult } from "./result.js";
-import { shapeCategory, shapeCategoryGroup, shapeTransactionWrite } from "./shaping.js";
+import { shapeCategory, shapeCategoryGroup, shapeMonthCategory, shapeTransactionWrite } from "./shaping.js";
 
 const planId = z.string().min(1).describe("YNAB plan ID returned by ynab_list_plans.");
+const month = z
+  .string()
+  .regex(/^\d{4}-(0[1-9]|1[0-2])$/)
+  .describe("Month in YYYY-MM format.");
 const categoryGroupId = z.string().min(1).describe("YNAB category group ID returned by ynab_list_categories.");
 const categoryId = z.string().min(1).describe("YNAB category ID returned by ynab_list_categories.");
 const accountId = z.string().min(1).describe("YNAB account ID returned by ynab_list_accounts.");
@@ -46,6 +50,10 @@ const importId = z
   .max(36)
   .optional()
   .describe("Optional YNAB import_id for duplicate detection. Must be unique and at most 36 characters.");
+const budgeted = z
+  .number()
+  .int()
+  .describe("Assigned budget amount in YNAB milliunits for this category month. For example, $12.34 is 12340.");
 const categoryUpdateFields = {
   name: categoryName.optional().describe("New category name."),
   note: nullableNote,
@@ -158,6 +166,18 @@ export function registerWriteTools(server: McpServer, ynab: YnabClient): void {
       }
       return jsonResult(shapeCategory(await ynab.updateCategory(plan_id, category_id, category)));
     },
+  );
+
+  server.registerTool(
+    "ynab_update_month_category",
+    {
+      title: "Update YNAB month category",
+      description: "Adjust the budgeted amount assigned to one category for a specific YNAB month.",
+      inputSchema: { plan_id: planId, month, category_id: categoryId, budgeted },
+      annotations: { ...updateAnnotations, title: "Update YNAB month category" },
+    },
+    async ({ plan_id, month: monthValue, category_id, budgeted: budgetedValue }) =>
+      jsonResult(shapeMonthCategory(await ynab.updateMonthCategory(plan_id, monthValue, category_id, { budgeted: budgetedValue }))),
   );
 
   server.registerTool(

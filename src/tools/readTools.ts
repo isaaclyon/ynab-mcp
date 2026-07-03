@@ -8,6 +8,8 @@ import {
   shapeCategory,
   shapeCategories,
   shapeMonth,
+  shapeMonthCategory,
+  shapeMonths,
   shapePlans,
   shapeTransaction,
   shapeTransactions,
@@ -17,7 +19,7 @@ import {
 const planId = z.string().min(1).describe("YNAB plan ID returned by ynab_list_plans.");
 const month = z
   .string()
-  .regex(/^\d{4}-\d{2}$/)
+  .regex(/^\d{4}-(0[1-9]|1[0-2])$/)
   .describe("Month in YYYY-MM format.");
 const date = z
   .string()
@@ -62,8 +64,6 @@ export function registerReadTools(server: McpServer, ynab: YnabClient): void {
     async ({ plan_id }) => jsonResult(shapeCategories(await ynab.listCategories(plan_id))),
   );
 
-
-
   server.registerTool(
     "ynab_get_category",
     {
@@ -77,6 +77,18 @@ export function registerReadTools(server: McpServer, ynab: YnabClient): void {
     },
     async ({ plan_id, category_id }) => jsonResult(shapeCategory(await ynab.getCategory(plan_id, category_id))),
   );
+
+  server.registerTool(
+    "ynab_list_months",
+    {
+      title: "List YNAB months",
+      description: "List month summaries for a YNAB plan, including month IDs and assigned/activity totals.",
+      inputSchema: { plan_id: planId },
+      annotations: { ...readOnlyAnnotations, title: "List YNAB months" },
+    },
+    async ({ plan_id }) => jsonResult(shapeMonths(await ynab.listMonths(plan_id))),
+  );
+
   server.registerTool(
     "ynab_get_month",
     {
@@ -86,6 +98,22 @@ export function registerReadTools(server: McpServer, ynab: YnabClient): void {
       annotations: { ...readOnlyAnnotations, title: "Get YNAB month" },
     },
     async ({ plan_id, month: monthValue }) => jsonResult(shapeMonth(await ynab.getMonth(plan_id, monthValue))),
+  );
+
+  server.registerTool(
+    "ynab_get_month_category",
+    {
+      title: "Get YNAB month category",
+      description: "Get one category's budgeted, activity, and balance values for a specific YNAB month.",
+      inputSchema: {
+        plan_id: planId,
+        month,
+        category_id: z.string().min(1).describe("Category ID returned by ynab_list_categories or ynab_get_month."),
+      },
+      annotations: { ...readOnlyAnnotations, title: "Get YNAB month category" },
+    },
+    async ({ plan_id, month: monthValue, category_id }) =>
+      jsonResult(shapeMonthCategory(await ynab.getMonthCategory(plan_id, monthValue, category_id))),
   );
 
   server.registerTool(

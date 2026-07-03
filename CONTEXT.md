@@ -35,10 +35,14 @@ _Avoid_: calling this a short PIN or using a low-entropy numeric code.
 
 **Read-only tool**: A tool that only performs YNAB `GET` requests or local filtering of fetched data. It must be annotated as read-only in MCP tool metadata.
 
-**Write tool**: A tool that creates, updates, imports, deletes, or otherwise mutates YNAB state. Write tools are separate from read tools and must not be hidden behind a generic executor. Current write slices cover category/category-group create/update and single transaction create/update; YNAB does not expose delete endpoints for categories or category groups.
+**Write tool**: A tool that creates, updates, imports, deletes, or otherwise mutates YNAB state. Write tools are separate from read tools and must not be hidden behind a generic executor. Current write slices cover category/category-group create/update, month/category budgeted amount update, and single transaction create/update; YNAB does not expose delete endpoints for categories or category groups.
 
 **Named YNAB concept tool**: A tool named after user-facing YNAB concepts and tasks, such as listing plans, accounts, categories, months, or transactions.
 _Avoid_: exposing the whole REST API as the primary model-facing interface.
+
+**Money movement**: A YNAB API record representing assigned money moving through the plan, such as category-to-category moves or Ready to Assign activity. It is about budget allocation movement, not bank-account transaction movement.
+
+**Money movement group**: A YNAB API grouping of related money movement records into a higher-level budgeting action. Treat it as read-only history/metadata until response examples are validated against the live API.
 
 **Escape-hatch endpoint tool**: A constrained tool, if added later, for discovering or executing less-common YNAB API calls. For this project, any escape hatch starts read-only and should reference YNAB API docs explicitly.
 

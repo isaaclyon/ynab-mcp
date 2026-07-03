@@ -33,6 +33,10 @@ export type CreateTransactionInput = {
 
 export type UpdateTransactionInput = Partial<Omit<CreateTransactionInput, "import_id">>;
 
+export type MonthCategoryInput = {
+  budgeted: number;
+};
+
 export class YnabApiError extends Error {
   constructor(
     message: string,
@@ -98,6 +102,26 @@ export class YnabClient {
 
   getMonth(planId: string, month: string): Promise<unknown> {
     return this.request("GET", `/plans/${encodeURIComponent(planId)}/months/${encodeURIComponent(month)}`);
+  }
+
+  listMonths(planId: string): Promise<unknown> {
+    return this.request("GET", `/plans/${encodeURIComponent(planId)}/months`);
+  }
+
+  getMonthCategory(planId: string, month: string, categoryId: string): Promise<unknown> {
+    return this.request(
+      "GET",
+      `/plans/${encodeURIComponent(planId)}/months/${encodeURIComponent(month)}/categories/${encodeURIComponent(categoryId)}`,
+    );
+  }
+
+  updateMonthCategory(planId: string, month: string, categoryId: string, category: MonthCategoryInput): Promise<unknown> {
+    return this.request(
+      "PATCH",
+      `/plans/${encodeURIComponent(planId)}/months/${encodeURIComponent(month)}/categories/${encodeURIComponent(categoryId)}`,
+      undefined,
+      { category },
+    );
   }
 
   listTransactions(planId: string, sinceDate?: string): Promise<unknown> {

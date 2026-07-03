@@ -20,15 +20,18 @@ The current implementation is used locally over Streamable HTTP, with a path to 
   - `ynab_list_plans`
   - `ynab_list_accounts`
   - `ynab_list_categories`
-  - `ynab_get_month`
-  - `ynab_search_transactions`
-  - `ynab_get_transaction`
   - `ynab_get_category`
+  - `ynab_list_months`
+  - `ynab_get_month`
+  - `ynab_get_month_category`
+  - `ynab_get_transaction`
+  - `ynab_search_transactions`
 - Write tools:
   - `ynab_create_category`
   - `ynab_update_category`
   - `ynab_create_category_group`
   - `ynab_update_category_group`
+  - `ynab_update_month_category`
   - `ynab_create_transaction`
   - `ynab_update_transaction`
 
@@ -55,7 +58,7 @@ npm run build
 npm start
 ```
 
-`npm run smoke` starts an in-process Streamable HTTP server with mocked YNAB responses and verifies initialize, `tools/list`, and one read-only tool call. The automated test suite also covers category and transaction write tool calls.
+`npm run smoke` starts an in-process Streamable HTTP server with mocked YNAB responses and verifies initialize, `tools/list`, and one read-only tool call. The automated test suite also covers category, month/category budgeting, and transaction write tool calls.
 
 ## Documentation map
 

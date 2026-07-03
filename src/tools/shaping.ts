@@ -41,12 +41,20 @@ export function shapeMonth(response: unknown): unknown {
   }
   return {
     month: {
-      ...pick(month, ["month", "note", "income", "budgeted", "activity", "to_be_budgeted", "age_of_money"]),
-      categories: getArray(month, ["categories"]).map((category) =>
-        pick(category, ["id", "name", "category_group_id", "budgeted", "activity", "balance", "hidden", "deleted"]),
-      ),
+      ...shapeMonthSummaryRecord(month),
+      categories: getArray(month, ["categories"]).map(shapeMonthCategoryRecord),
     },
   };
+}
+
+export function shapeMonths(response: unknown): unknown {
+  const months = getArray(response, ["data", "months"]);
+  return { months: months.map(shapeMonthSummaryRecord) };
+}
+
+export function shapeMonthCategory(response: unknown): unknown {
+  const category = getRecord(response, ["data", "category"]);
+  return category ? { category: shapeMonthCategoryRecord(category) } : response;
 }
 
 export function shapeTransactions(response: unknown, filters: TransactionFilters): unknown {
@@ -97,6 +105,14 @@ function shapeCategoryRecord(category: JsonRecord): JsonRecord {
 
 function shapeCategoryGroupRecord(group: JsonRecord): JsonRecord {
   return pick(group, ["id", "name", "hidden", "internal", "deleted"]);
+}
+
+function shapeMonthSummaryRecord(month: JsonRecord): JsonRecord {
+  return pick(month, ["month", "note", "income", "budgeted", "activity", "to_be_budgeted", "age_of_money", "deleted"]);
+}
+
+function shapeMonthCategoryRecord(category: JsonRecord): JsonRecord {
+  return shapeCategoryRecord(category);
 }
 
 function shapeTransactionRecord(transaction: JsonRecord): JsonRecord {
