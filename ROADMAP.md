@@ -6,7 +6,7 @@ This file captures medium-term direction and sequencing. Temporary checklists li
 
 - Build a personal YNAB MCP server optimized for Claude web custom connectors.
 - Keep named read-only tools over YNAB plans/accounts/categories/months/transactions.
-- Add explicit write tools without exposing generic mutation; the first write slice covers category/category-group create and update.
+- Add explicit write tools without exposing generic mutation; current write slices cover category/category-group create/update and single transaction create/update.
 
 ## Active phases
 
@@ -19,7 +19,7 @@ This file captures medium-term direction and sequencing. Temporary checklists li
 
 ### Phase 2 — Local Streamable HTTP prototype
 
-- Goal: Implement and test a TypeScript Streamable HTTP MCP server with read tools plus the initial category/category-group write slice.
+- Goal: Implement and test a TypeScript Streamable HTTP MCP server with read tools plus category/category-group and transaction write slices.
 - Why now: Local MCP use is working and is the current focus before public Claude web deployment.
 - Depends on: Phase 1 auth and hosting decisions.
 
@@ -31,7 +31,7 @@ This file captures medium-term direction and sequencing. Temporary checklists li
 
 ### Phase 4 — Additional write tools and optional escape hatch
 
-- Goal: Add more explicit write tools beyond category/category-group create/update, and optionally a constrained read-only endpoint escape hatch.
+- Goal: Add more explicit write tools beyond category/category-group and transaction create/update, and optionally a constrained read-only endpoint escape hatch.
 - Why later: Additional write operations affect financial records and need separate confirmation, annotations, and tests.
 - Depends on: Stable read tools and a clear write-safety policy.
 

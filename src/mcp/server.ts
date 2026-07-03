@@ -8,7 +8,7 @@ export function createMcpServer(ynab: YnabClient): McpServer {
     { name: "ynab-mcp", version: "0.1.0" },
     {
       instructions:
-        "Use ynab_list_plans to discover plan_id values before calling plan-specific tools. Category and category-group write tools mutate YNAB data; inspect IDs with ynab_list_categories first.",
+        "Use ynab_list_plans to discover plan_id values before calling plan-specific tools. Write tools mutate YNAB data; inspect category/account/transaction IDs with read tools first.",
     },
   );
 

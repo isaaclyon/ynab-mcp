@@ -119,4 +119,61 @@ describe("YnabClient", () => {
     expect(fetchImpl.mock.calls.map(([, init]) => init?.method)).toEqual(["PATCH", "PATCH"]);
     expect(JSON.parse(String(fetchImpl.mock.calls[1]?.[1]?.body))).toEqual({ category: { name: "Coffee Beans", note: null } });
   });
+
+  it("creates transactions with the expected wrapper", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ data: { transaction: { id: "txn-1" } } }, { status: 201 }));
+    const client = new YnabClient({
+      baseUrl: new URL("https://api.ynab.test/v1"),
+      accessToken: "secret-token",
+      fetchImpl,
+    });
+
+    await client.createTransaction("plan-1", {
+      account_id: "account-1",
+      date: "2026-07-03",
+      amount: -12340,
+      payee_name: "Coffee Shop",
+      category_id: "cat-1",
+      memo: "Beans",
+      cleared: "cleared",
+      approved: true,
+      flag_color: "blue",
+      import_id: "YNAB:-12340:2026-07-03:1",
+    });
+
+    const [url, init] = fetchImpl.mock.calls[0] ?? [];
+    expect(String(url)).toBe("https://api.ynab.test/v1/plans/plan-1/transactions");
+    expect(init?.method).toBe("POST");
+    expect(init?.headers).toMatchObject({ "Content-Type": "application/json", Authorization: "Bearer secret-token" });
+    expect(JSON.parse(String(init?.body))).toEqual({
+      transaction: {
+        account_id: "account-1",
+        date: "2026-07-03",
+        amount: -12340,
+        payee_name: "Coffee Shop",
+        category_id: "cat-1",
+        memo: "Beans",
+        cleared: "cleared",
+        approved: true,
+        flag_color: "blue",
+        import_id: "YNAB:-12340:2026-07-03:1",
+      },
+    });
+  });
+
+  it("updates transactions with PUT and a transaction wrapper", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ data: { transaction: { id: "txn-1" } } }));
+    const client = new YnabClient({
+      baseUrl: new URL("https://api.ynab.test/v1"),
+      accessToken: "secret-token",
+      fetchImpl,
+    });
+
+    await client.updateTransaction("plan-1", "txn-1", { memo: null, approved: false, category_id: null });
+
+    const [url, init] = fetchImpl.mock.calls[0] ?? [];
+    expect(String(url)).toBe("https://api.ynab.test/v1/plans/plan-1/transactions/txn-1");
+    expect(init?.method).toBe("PUT");
+    expect(JSON.parse(String(init?.body))).toEqual({ transaction: { memo: null, approved: false, category_id: null } });
+  });
 });

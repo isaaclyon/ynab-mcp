@@ -62,6 +62,11 @@ export function shapeTransaction(response: unknown): unknown {
   return transaction ? { transaction: shapeTransactionRecord(transaction) } : response;
 }
 
+export function shapeTransactionWrite(response: unknown): unknown {
+  const transaction = getRecord(response, ["data", "transaction"]);
+  return transaction ? { transaction: shapeTransactionRecord(transaction) } : response;
+}
+
 export type TransactionFilters = {
   limit: number;
   query?: string;
@@ -95,7 +100,7 @@ function shapeCategoryGroupRecord(group: JsonRecord): JsonRecord {
 }
 
 function shapeTransactionRecord(transaction: JsonRecord): JsonRecord {
-  return pick(transaction, [
+  const shaped = pick(transaction, [
     "id",
     "date",
     "amount",
@@ -105,6 +110,25 @@ function shapeTransactionRecord(transaction: JsonRecord): JsonRecord {
     "flag_color",
     "account_id",
     "account_name",
+    "payee_id",
+    "payee_name",
+    "category_id",
+    "category_name",
+    "transfer_account_id",
+    "deleted",
+  ]);
+  const subtransactions = getArray(transaction, ["subtransactions"]);
+  return subtransactions.length > 0
+    ? { ...shaped, subtransactions: subtransactions.map(shapeSubtransactionRecord) }
+    : shaped;
+}
+
+function shapeSubtransactionRecord(subtransaction: JsonRecord): JsonRecord {
+  return pick(subtransaction, [
+    "id",
+    "transaction_id",
+    "amount",
+    "memo",
     "payee_id",
     "payee_name",
     "category_id",

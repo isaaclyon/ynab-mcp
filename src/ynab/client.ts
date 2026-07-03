@@ -17,6 +17,22 @@ export type CategoryInput = {
   goal_needs_whole_amount?: boolean | null;
 };
 
+export type CreateTransactionInput = {
+  account_id: string;
+  date: string;
+  amount: number;
+  payee_id?: string;
+  payee_name?: string;
+  category_id?: string | null;
+  memo?: string | null;
+  cleared?: "cleared" | "uncleared" | "reconciled";
+  approved?: boolean;
+  flag_color?: "red" | "orange" | "yellow" | "green" | "blue" | "purple" | null;
+  import_id?: string;
+};
+
+export type UpdateTransactionInput = Partial<Omit<CreateTransactionInput, "import_id">>;
+
 export class YnabApiError extends Error {
   constructor(
     message: string,
@@ -93,8 +109,18 @@ export class YnabClient {
     return this.request("GET", `/plans/${encodeURIComponent(planId)}/transactions/${encodeURIComponent(transactionId)}`);
   }
 
+  createTransaction(planId: string, transaction: CreateTransactionInput): Promise<unknown> {
+    return this.request("POST", `/plans/${encodeURIComponent(planId)}/transactions`, undefined, { transaction });
+  }
+
+  updateTransaction(planId: string, transactionId: string, transaction: UpdateTransactionInput): Promise<unknown> {
+    return this.request("PUT", `/plans/${encodeURIComponent(planId)}/transactions/${encodeURIComponent(transactionId)}`, undefined, {
+      transaction,
+    });
+  }
+
   private async request(
-    method: "GET" | "POST" | "PATCH",
+    method: "GET" | "POST" | "PATCH" | "PUT",
     path: string,
     query?: Record<string, string>,
     body?: unknown,

@@ -35,7 +35,7 @@ _Avoid_: calling this a short PIN or using a low-entropy numeric code.
 
 **Read-only tool**: A tool that only performs YNAB `GET` requests or local filtering of fetched data. It must be annotated as read-only in MCP tool metadata.
 
-**Write tool**: A tool that creates, updates, imports, deletes, or otherwise mutates YNAB state. Write tools are separate from read tools and must not be hidden behind a generic executor. Category/category-group create and update tools are the first write slice; YNAB does not expose delete endpoints for those resources.
+**Write tool**: A tool that creates, updates, imports, deletes, or otherwise mutates YNAB state. Write tools are separate from read tools and must not be hidden behind a generic executor. Current write slices cover category/category-group create/update and single transaction create/update; YNAB does not expose delete endpoints for categories or category groups.
 
 **Named YNAB concept tool**: A tool named after user-facing YNAB concepts and tasks, such as listing plans, accounts, categories, months, or transactions.
 _Avoid_: exposing the whole REST API as the primary model-facing interface.

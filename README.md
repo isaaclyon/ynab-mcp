@@ -24,11 +24,13 @@ The current implementation is used locally over Streamable HTTP, with a path to 
   - `ynab_search_transactions`
   - `ynab_get_transaction`
   - `ynab_get_category`
-- Category/category-group write tools:
+- Write tools:
   - `ynab_create_category`
   - `ynab_update_category`
   - `ynab_create_category_group`
   - `ynab_update_category_group`
+  - `ynab_create_transaction`
+  - `ynab_update_transaction`
 
 YNAB does not expose delete endpoints for categories or category groups, so delete tools are not implemented.
 
@@ -53,7 +55,7 @@ npm run build
 npm start
 ```
 
-`npm run smoke` starts an in-process Streamable HTTP server with mocked YNAB responses and verifies initialize, `tools/list`, and one read-only tool call. The automated test suite also covers category write tool calls.
+`npm run smoke` starts an in-process Streamable HTTP server with mocked YNAB responses and verifies initialize, `tools/list`, and one read-only tool call. The automated test suite also covers category and transaction write tool calls.
 
 ## Documentation map
 

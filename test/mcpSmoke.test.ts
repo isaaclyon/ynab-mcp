@@ -33,6 +33,8 @@ describe("MCP smoke", () => {
     const tools = await client.listTools();
     expect(tools.tools.map((tool) => tool.name)).toContain("ynab_list_plans");
     expect(tools.tools.map((tool) => tool.name)).toContain("ynab_create_category");
+    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_create_transaction");
+    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_update_transaction");
     expect(tools.tools.find((tool) => tool.name === "ynab_list_plans")?.annotations).toMatchObject({
       readOnlyHint: true,
       destructiveHint: false,
@@ -47,6 +49,12 @@ describe("MCP smoke", () => {
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: true,
+      openWorldHint: true,
+    });
+    expect(tools.tools.find((tool) => tool.name === "ynab_create_transaction")?.annotations).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
       openWorldHint: true,
     });
 
@@ -128,6 +136,91 @@ describe("MCP smoke", () => {
     await client.close();
   });
 
+  it("calls transaction write tools through Streamable HTTP", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async (url, init) => {
+      const requestUrl = new URL(String(url));
+      if (requestUrl.pathname === "/v1/plans/plan-1/transactions" && init?.method === "POST") {
+        return jsonResponse({
+          data: {
+            transaction: {
+              id: "txn-1",
+              date: "2026-07-03",
+              amount: -12340,
+              account_id: "account-1",
+              account_name: "Checking",
+              payee_name: "Coffee Shop",
+              category_id: "cat-1",
+              category_name: "Coffee",
+              memo: "Beans",
+              cleared: "cleared",
+              approved: true,
+              deleted: false,
+            },
+          },
+        }, 201);
+      }
+      if (requestUrl.pathname === "/v1/plans/plan-1/transactions/txn-1" && init?.method === "PUT") {
+        return jsonResponse({
+          data: {
+            transaction: {
+              id: "txn-1",
+              date: "2026-07-03",
+              amount: -12340,
+              account_id: "account-1",
+              memo: null,
+              approved: false,
+              deleted: false,
+            },
+          },
+        });
+      }
+      return jsonResponse({ error: { detail: `Unhandled ${init?.method} ${requestUrl.pathname}` } }, 404);
+    });
+    const app = createApp(testConfig({ devAuthBypass: true }), { fetchImpl });
+    const url = await listen(app);
+
+    const transport = new StreamableHTTPClientTransport(new URL("/mcp", url));
+    const client = new Client({ name: "transaction-write-smoke-test", version: "0.1.0" });
+    await client.connect(transport);
+
+    const createResult = await client.callTool(
+      {
+        name: "ynab_create_transaction",
+        arguments: {
+          plan_id: "plan-1",
+          account_id: "account-1",
+          date: "2026-07-03",
+          amount: -12340,
+          payee_name: "Coffee Shop",
+          category_id: "cat-1",
+          memo: "Beans",
+          cleared: "cleared",
+          approved: true,
+        },
+      },
+      CallToolResultSchema,
+    );
+    expect(JSON.parse(firstText(createResult)) as unknown).toMatchObject({
+      transaction: { id: "txn-1", account_id: "account-1", payee_name: "Coffee Shop", category_id: "cat-1" },
+    });
+
+    const updateResult = await client.callTool(
+      { name: "ynab_update_transaction", arguments: { plan_id: "plan-1", transaction_id: "txn-1", memo: null, approved: false } },
+      CallToolResultSchema,
+    );
+    expect(JSON.parse(firstText(updateResult)) as unknown).toMatchObject({
+      transaction: { id: "txn-1", memo: null, approved: false },
+    });
+
+    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(JSON.parse(String(fetchImpl.mock.calls[0]?.[1]?.body))).toMatchObject({
+      transaction: { account_id: "account-1", date: "2026-07-03", amount: -12340, payee_name: "Coffee Shop" },
+    });
+    expect(JSON.parse(String(fetchImpl.mock.calls[1]?.[1]?.body))).toEqual({ transaction: { memo: null, approved: false } });
+
+    await client.close();
+  });
+
   it("calls ynab_get_category as a read tool through Streamable HTTP", async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(
@@ -190,7 +283,44 @@ describe("MCP smoke", () => {
 
     await client.close();
   });
+
+  it("rejects invalid transaction updates before calling YNAB", async () => {
+    const fetchImpl = vi.fn<typeof fetch>();
+    const app = createApp(testConfig({ devAuthBypass: true }), { fetchImpl });
+    const url = await listen(app);
+
+    const transport = new StreamableHTTPClientTransport(new URL("/mcp", url));
+    const client = new Client({ name: "invalid-transaction-update-smoke-test", version: "0.1.0" });
+    await client.connect(transport);
+
+    const emptyResult = await client.callTool(
+      { name: "ynab_update_transaction", arguments: { plan_id: "plan-1", transaction_id: "txn-1" } },
+      CallToolResultSchema,
+    );
+    expect(emptyResult.isError).toBe(true);
+    expect(firstText(emptyResult)).toContain("At least one transaction field");
+
+    const payeeResult = await client.callTool(
+      {
+        name: "ynab_update_transaction",
+        arguments: { plan_id: "plan-1", transaction_id: "txn-1", payee_id: "payee-1", payee_name: "Coffee Shop" },
+      },
+      CallToolResultSchema,
+    );
+    expect(payeeResult.isError).toBe(true);
+    expect(firstText(payeeResult)).toContain("either payee_id or payee_name");
+    expect(fetchImpl).not.toHaveBeenCalled();
+
+    await client.close();
+  });
 });
+
+function jsonResponse(body: unknown, status = 200): Response {
+  return new Response(JSON.stringify(body), {
+    status,
+    headers: { "content-type": "application/json" },
+  });
+}
 
 async function listen(app: ReturnType<typeof createApp>): Promise<URL> {
   const server = createServer(app);
