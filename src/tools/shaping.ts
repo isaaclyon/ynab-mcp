@@ -34,6 +34,16 @@ export function shapeCategories(response: unknown): unknown {
   };
 }
 
+export function shapePayees(response: unknown): unknown {
+  const payees = getArray(response, ["data", "payees"]);
+  return { payees: payees.map(shapePayeeRecord) };
+}
+
+export function shapePayee(response: unknown): unknown {
+  const payee = getRecord(response, ["data", "payee"]);
+  return payee ? { payee: shapePayeeRecord(payee) } : response;
+}
+
 export function shapeMonth(response: unknown): unknown {
   const month = getRecord(response, ["data", "month"]);
   if (!month) {
@@ -105,6 +115,10 @@ function shapeCategoryRecord(category: JsonRecord): JsonRecord {
 
 function shapeCategoryGroupRecord(group: JsonRecord): JsonRecord {
   return pick(group, ["id", "name", "hidden", "internal", "deleted"]);
+}
+
+function shapePayeeRecord(payee: JsonRecord): JsonRecord {
+  return pick(payee, ["id", "name", "transfer_account_id", "deleted"]);
 }
 
 function shapeMonthSummaryRecord(month: JsonRecord): JsonRecord {

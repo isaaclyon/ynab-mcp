@@ -3,7 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { YnabClient } from "../ynab/client.js";
 import { createAnnotations, updateAnnotations } from "./annotations.js";
 import { jsonResult } from "./result.js";
-import { shapeCategory, shapeCategoryGroup, shapeMonthCategory, shapeTransactionWrite } from "./shaping.js";
+import { shapeCategory, shapeCategoryGroup, shapeMonthCategory, shapePayee, shapeTransactionWrite } from "./shaping.js";
 
 const planId = z.string().min(1).describe("YNAB plan ID returned by ynab_list_plans.");
 const month = z
@@ -32,8 +32,10 @@ const nullableIsoDate = isoDate
   .nullable()
   .optional()
   .describe("ISO date in YYYY-MM-DD format. Pass null to clear when YNAB supports clearing this field.");
-const payeeId = z.string().min(1).optional().describe("Existing YNAB payee ID. Do not provide with payee_name.");
-const payeeName = z.string().min(1).max(100).optional().describe("Payee name. Do not provide with payee_id.");
+const payeeToolId = z.string().min(1).describe("YNAB payee ID returned by ynab_list_payees.");
+const payeeId = payeeToolId.optional().describe("Existing YNAB payee ID. Do not provide with payee_name.");
+const payeeNameValue = z.string().trim().min(1).max(100).describe("Payee name. Must be 1-100 non-blank characters.");
+const payeeName = payeeNameValue.optional().describe("Payee name. Do not provide with payee_id.");
 const nullableTransactionCategoryId = categoryId
   .nullable()
   .optional()
@@ -93,6 +95,28 @@ const transactionUpdateFields = {
 } as const;
 
 export function registerWriteTools(server: McpServer, ynab: YnabClient): void {
+  server.registerTool(
+    "ynab_create_payee",
+    {
+      title: "Create YNAB payee",
+      description: "Create a payee in a YNAB plan for stable use in transaction tools.",
+      inputSchema: { plan_id: planId, name: payeeNameValue },
+      annotations: { ...createAnnotations, title: "Create YNAB payee" },
+    },
+    async ({ plan_id, name }) => jsonResult(shapePayee(await ynab.createPayee(plan_id, { name }))),
+  );
+
+  server.registerTool(
+    "ynab_update_payee",
+    {
+      title: "Update YNAB payee",
+      description: "Rename an existing YNAB payee.",
+      inputSchema: { plan_id: planId, payee_id: payeeToolId, name: payeeNameValue },
+      annotations: { ...updateAnnotations, title: "Update YNAB payee" },
+    },
+    async ({ plan_id, payee_id, name }) => jsonResult(shapePayee(await ynab.updatePayee(plan_id, payee_id, { name }))),
+  );
+
   server.registerTool(
     "ynab_create_category_group",
     {

@@ -64,7 +64,7 @@ YNAB API (`https://api.ynab.com/v1`)
 - Claude web is the optimized runtime target, so public HTTPS and remote MCP behavior matter more than local stdio convenience.
 - New public tools are named around YNAB concepts unless a deliberate escape hatch is added.
 - Read and write operations are separate tools and separate modules.
-- Category/category-group writes cover create and update only because YNAB does not expose delete endpoints for those resources; month/category budgeting writes cover category budgeted amount updates; transaction writes cover single transaction create and update.
+- Category/category-group writes cover create and update only because YNAB does not expose delete endpoints for those resources; payee writes cover create and update; month/category budgeting writes cover category budgeted amount updates; transaction writes cover single transaction create and update.
 - Every tool has MCP annotations for at least title, read-only/destructive behavior, and external-world access.
 - Tool results should be compact enough for Claude web limits and include IDs needed for follow-up calls.
 - The project uses `plans`, not `budgets`, in new user-facing schemas and docs.

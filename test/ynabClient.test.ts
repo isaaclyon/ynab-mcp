@@ -197,4 +197,28 @@ describe("YnabClient", () => {
     expect(fetchImpl.mock.calls.map(([, init]) => init?.method)).toEqual(["GET", "GET", "PATCH"]);
     expect(JSON.parse(String(fetchImpl.mock.calls[2]?.[1]?.body))).toEqual({ category: { budgeted: 25000 } });
   });
+
+  it("builds payee CRUD requests", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async () => jsonResponse({ data: { payee: { id: "payee-1" } } }));
+    const client = new YnabClient({
+      baseUrl: new URL("https://api.ynab.test/v1"),
+      accessToken: "secret-token",
+      fetchImpl,
+    });
+
+    await client.listPayees("plan-1");
+    await client.createPayee("plan-1", { name: "Coffee Shop" });
+    await client.getPayee("plan-1", "payee-1");
+    await client.updatePayee("plan-1", "payee-1", { name: "Coffee Roaster" });
+
+    expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
+      "https://api.ynab.test/v1/plans/plan-1/payees",
+      "https://api.ynab.test/v1/plans/plan-1/payees",
+      "https://api.ynab.test/v1/plans/plan-1/payees/payee-1",
+      "https://api.ynab.test/v1/plans/plan-1/payees/payee-1",
+    ]);
+    expect(fetchImpl.mock.calls.map(([, init]) => init?.method)).toEqual(["GET", "POST", "GET", "PATCH"]);
+    expect(JSON.parse(String(fetchImpl.mock.calls[1]?.[1]?.body))).toEqual({ payee: { name: "Coffee Shop" } });
+    expect(JSON.parse(String(fetchImpl.mock.calls[3]?.[1]?.body))).toEqual({ payee: { name: "Coffee Roaster" } });
+  });
 });

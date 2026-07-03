@@ -10,6 +10,8 @@ import {
   shapeMonth,
   shapeMonthCategory,
   shapeMonths,
+  shapePayee,
+  shapePayees,
   shapePlans,
   shapeTransaction,
   shapeTransactions,
@@ -76,6 +78,31 @@ export function registerReadTools(server: McpServer, ynab: YnabClient): void {
       annotations: { ...readOnlyAnnotations, title: "Get YNAB category" },
     },
     async ({ plan_id, category_id }) => jsonResult(shapeCategory(await ynab.getCategory(plan_id, category_id))),
+  );
+
+  server.registerTool(
+    "ynab_list_payees",
+    {
+      title: "List YNAB payees",
+      description: "List payees for a YNAB plan, including stable payee IDs for transaction tools.",
+      inputSchema: { plan_id: planId },
+      annotations: { ...readOnlyAnnotations, title: "List YNAB payees" },
+    },
+    async ({ plan_id }) => jsonResult(shapePayees(await ynab.listPayees(plan_id))),
+  );
+
+  server.registerTool(
+    "ynab_get_payee",
+    {
+      title: "Get YNAB payee",
+      description: "Get one payee by ID for a YNAB plan.",
+      inputSchema: {
+        plan_id: planId,
+        payee_id: z.string().min(1).describe("Payee ID returned by ynab_list_payees."),
+      },
+      annotations: { ...readOnlyAnnotations, title: "Get YNAB payee" },
+    },
+    async ({ plan_id, payee_id }) => jsonResult(shapePayee(await ynab.getPayee(plan_id, payee_id))),
   );
 
   server.registerTool(

@@ -37,6 +37,10 @@ export type MonthCategoryInput = {
   budgeted: number;
 };
 
+export type PayeeInput = {
+  name: string;
+};
+
 export class YnabApiError extends Error {
   constructor(
     message: string,
@@ -98,6 +102,22 @@ export class YnabClient {
       undefined,
       { category_group: categoryGroup },
     );
+  }
+
+  listPayees(planId: string): Promise<unknown> {
+    return this.request("GET", `/plans/${encodeURIComponent(planId)}/payees`);
+  }
+
+  createPayee(planId: string, payee: PayeeInput): Promise<unknown> {
+    return this.request("POST", `/plans/${encodeURIComponent(planId)}/payees`, undefined, { payee });
+  }
+
+  getPayee(planId: string, payeeId: string): Promise<unknown> {
+    return this.request("GET", `/plans/${encodeURIComponent(planId)}/payees/${encodeURIComponent(payeeId)}`);
+  }
+
+  updatePayee(planId: string, payeeId: string, payee: PayeeInput): Promise<unknown> {
+    return this.request("PATCH", `/plans/${encodeURIComponent(planId)}/payees/${encodeURIComponent(payeeId)}`, undefined, { payee });
   }
 
   getMonth(planId: string, month: string): Promise<unknown> {

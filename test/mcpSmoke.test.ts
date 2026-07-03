@@ -38,6 +38,10 @@ describe("MCP smoke", () => {
     expect(tools.tools.map((tool) => tool.name)).toContain("ynab_create_category");
     expect(tools.tools.map((tool) => tool.name)).toContain("ynab_create_transaction");
     expect(tools.tools.map((tool) => tool.name)).toContain("ynab_update_transaction");
+    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_list_payees");
+    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_get_payee");
+    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_create_payee");
+    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_update_payee");
     expect(tools.tools.find((tool) => tool.name === "ynab_list_plans")?.annotations).toMatchObject({
       readOnlyHint: true,
       destructiveHint: false,
@@ -66,6 +70,17 @@ describe("MCP smoke", () => {
       openWorldHint: true,
     });
     expect(tools.tools.find((tool) => tool.name === "ynab_create_transaction")?.annotations).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    });
+    expect(tools.tools.find((tool) => tool.name === "ynab_list_payees")?.annotations).toMatchObject({
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: true,
+    });
+    expect(tools.tools.find((tool) => tool.name === "ynab_create_payee")?.annotations).toMatchObject({
       readOnlyHint: false,
       destructiveHint: false,
       idempotentHint: false,
@@ -320,6 +335,48 @@ describe("MCP smoke", () => {
     await client.close();
   });
 
+  it("calls payee tools through Streamable HTTP", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async (url, init) => {
+      const requestUrl = new URL(String(url));
+      if (requestUrl.pathname === "/v1/plans/plan-1/payees" && init?.method === "GET") {
+        return jsonResponse({ data: { payees: [{ id: "payee-1", name: "Coffee Shop", transfer_account_id: null, deleted: false }] } });
+      }
+      if (requestUrl.pathname === "/v1/plans/plan-1/payees" && init?.method === "POST") {
+        return jsonResponse({ data: { payee: { id: "payee-2", name: "Book Store", transfer_account_id: null, deleted: false } } }, 201);
+      }
+      if (requestUrl.pathname === "/v1/plans/plan-1/payees/payee-1" && init?.method === "GET") {
+        return jsonResponse({ data: { payee: { id: "payee-1", name: "Coffee Shop", transfer_account_id: null, deleted: false } } });
+      }
+      if (requestUrl.pathname === "/v1/plans/plan-1/payees/payee-1" && init?.method === "PATCH") {
+        return jsonResponse({ data: { payee: { id: "payee-1", name: "Coffee Roaster", transfer_account_id: null, deleted: false } } });
+      }
+      return jsonResponse({ error: { detail: `Unhandled ${init?.method} ${requestUrl.pathname}` } }, 404);
+    });
+    const app = createApp(testConfig({ devAuthBypass: true }), { fetchImpl });
+    const url = await listen(app);
+
+    const transport = new StreamableHTTPClientTransport(new URL("/mcp", url));
+    const client = new Client({ name: "payee-smoke-test", version: "0.1.0" });
+    await client.connect(transport);
+
+    expect(JSON.parse(firstText(await client.callTool({ name: "ynab_list_payees", arguments: { plan_id: "plan-1" } }, CallToolResultSchema))) as unknown).toMatchObject({
+      payees: [{ id: "payee-1", name: "Coffee Shop" }],
+    });
+    expect(JSON.parse(firstText(await client.callTool({ name: "ynab_create_payee", arguments: { plan_id: "plan-1", name: "  Book Store  " } }, CallToolResultSchema))) as unknown).toMatchObject({
+      payee: { id: "payee-2", name: "Book Store" },
+    });
+    expect(JSON.parse(firstText(await client.callTool({ name: "ynab_get_payee", arguments: { plan_id: "plan-1", payee_id: "payee-1" } }, CallToolResultSchema))) as unknown).toMatchObject({
+      payee: { id: "payee-1", name: "Coffee Shop" },
+    });
+    expect(JSON.parse(firstText(await client.callTool({ name: "ynab_update_payee", arguments: { plan_id: "plan-1", payee_id: "payee-1", name: "  Coffee Roaster  " } }, CallToolResultSchema))) as unknown).toMatchObject({
+      payee: { id: "payee-1", name: "Coffee Roaster" },
+    });
+    expect(JSON.parse(String(fetchImpl.mock.calls[1]?.[1]?.body))).toEqual({ payee: { name: "Book Store" } });
+    expect(JSON.parse(String(fetchImpl.mock.calls[3]?.[1]?.body))).toEqual({ payee: { name: "Coffee Roaster" } });
+
+    await client.close();
+  });
+
   it("calls ynab_get_category as a read tool through Streamable HTTP", async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
       new Response(
@@ -424,6 +481,26 @@ describe("MCP smoke", () => {
 
     const result = await client.callTool(
       { name: "ynab_update_month_category", arguments: { plan_id: "plan-1", month: "2026-13", category_id: "cat-1", budgeted: 25000 } },
+      CallToolResultSchema,
+    );
+
+    expect(result.isError).toBe(true);
+    expect(fetchImpl).not.toHaveBeenCalled();
+
+    await client.close();
+  });
+
+  it("rejects invalid payee inputs before calling YNAB", async () => {
+    const fetchImpl = vi.fn<typeof fetch>();
+    const app = createApp(testConfig({ devAuthBypass: true }), { fetchImpl });
+    const url = await listen(app);
+
+    const transport = new StreamableHTTPClientTransport(new URL("/mcp", url));
+    const client = new Client({ name: "invalid-payee-smoke-test", version: "0.1.0" });
+    await client.connect(transport);
+
+    const result = await client.callTool(
+      { name: "ynab_create_payee", arguments: { plan_id: "plan-1", name: "   " } },
       CallToolResultSchema,
     );
 
