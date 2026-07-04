@@ -16,6 +16,7 @@ The current implementation is used locally over Streamable HTTP, with a path to 
   - in-memory access/refresh tokens.
 - Dev-only auth bypass for localhost/test runs via `DEV_AUTH_BYPASS=true`.
 - Server-side YNAB client boundary using `YNAB_ACCESS_TOKEN`.
+- In-memory YNAB read-through cache for successful `GET` responses, with in-flight read deduplication, write invalidation, and conservative delta freshness checks for account/category/payee list reads.
 - Named read tools:
   - `ynab_list_plans`
   - `ynab_list_accounts`

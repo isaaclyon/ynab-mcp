@@ -1,7 +1,7 @@
 # 2026-07-03 — Claude-web-optimized YNAB MCP scaffold
 
 Status: active
-Progress: Steps 1-4 scaffolded locally; local MCP use is working; category/category-group, payee, month/category budgeting, scoped account/category/payee/month transaction read, transaction create/update/delete, and scheduled transaction tools added; Claude web public HTTPS validation and Ubuntu deployment docs remain deferred.
+Progress: Steps 1-4 scaffolded locally; local MCP use is working; category/category-group, payee, month/category budgeting, scoped account/category/payee/month transaction read, transaction create/update/delete, scheduled transaction tools, and YNAB client read-through cache with conservative account/category/payee delta freshness checks added; Claude web public HTTPS validation and Ubuntu deployment docs remain deferred.
 Owner: Isaac / coding agent
 
 ## Goal
@@ -51,8 +51,8 @@ Implement a personal TypeScript YNAB MCP server, currently focused on local Stre
    - Status: scaffold complete locally.
    - Verify: tests cover OAuth metadata, unauthenticated MCP challenge, owner-passphrase authorization, PKCE token exchange, and no DCR registration endpoint.
 4. Implement YNAB client boundary and read/write tool split.
-   - Status: complete for initial read-only slice, category/category-group create/update tools, payee tools, month/category budgeting tools, scoped account/category/payee/month transaction read tools, single transaction create/update/delete tools, and scheduled transaction tools.
-   - Verify: mocked tests cover YNAB request construction/error handling and smoke covers read, category-write, payee, month/category-budgeting, scoped account/category/payee/month transaction, transaction-write/delete, and scheduled transaction tool calls.
+   - Status: complete for initial read-only slice, category/category-group create/update tools, payee tools, month/category budgeting tools, scoped account/category/payee/month transaction read tools, single transaction create/update/delete tools, scheduled transaction tools, and in-memory read-through cache with conservative delta freshness checks for account/category/payee list reads.
+   - Verify: mocked tests cover YNAB request construction/error handling, cache hits, in-flight read deduplication, no-change delta refresh, changed-delta full refresh, write invalidation, and smoke covers read, category-write, payee, month/category-budgeting, scoped account/category/payee/month transaction, transaction-write/delete, and scheduled transaction tool calls.
 5. Validate connector auth and public HTTPS with Claude web.
    - Verify: Claude web can connect, list tools, authorize through the OAuth/passphrase flow, and call at least one read-only YNAB tool.
 6. Document Ubuntu mini PC deployment.
@@ -71,7 +71,6 @@ Can defer:
 
 - `ynab_get_month`
 - `ynab_get_transaction`
-- Delta request support
 - Local stdio entrypoint
 - Escape-hatch endpoint tool
 

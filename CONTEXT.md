@@ -25,6 +25,12 @@ _Avoid_: treating host selection as an open cloud-vs-local decision. Tunnel/reve
 
 **YNAB credential**: The credential used by this server to call YNAB. For the personal version this is expected to be a Personal Access Token stored on the server, not sent to Claude or included in connector URLs.
 
+**Read-through cache**: A short-lived in-memory cache owned by the YNAB client boundary for successful read-only `GET` responses. It reduces repeated upstream calls during Claude tool use and is cleared after successful write requests.
+_Avoid_: treating cached reads as durable storage or as a substitute for YNAB as the source of truth.
+
+**Delta request**: A YNAB incremental-sync request that sends `last_knowledge_of_server` after a prior response returned `server_knowledge`. The YNAB client boundary uses delta requests conservatively for account, category, and payee list reads: no-change deltas extend the read-through cache, while changed deltas trigger a full refresh to preserve YNAB's output ordering.
+_Avoid_: exposing `server_knowledge` as normal tool input; it is an internal YNAB client concern.
+
 **Connector auth**: Authentication between Claude and this MCP server. It is separate from the YNAB credential. It exists to prevent arbitrary internet clients from using the owner's server-side YNAB credential.
 
 **Private MCP OAuth**: The personal connector-auth mechanism for this server: an MCP-compatible OAuth authorization-code flow with PKCE, gated by an owner-controlled passphrase, issuing bearer tokens for Claude to call this MCP server.
@@ -54,6 +60,7 @@ _Avoid_: exposing the whole REST API as the primary model-facing interface.
 - A **Claude web custom connector** calls the **personal server** over **remote Streamable HTTP**.
 - The **personal server** calls **YNAB** using the server-side **YNAB credential**.
 - **Connector auth** protects the MCP endpoint; it does not replace the **YNAB credential**.
+- The **YNAB client boundary** owns the **read-through cache** and **delta request** merge behavior.
 - **Read-only tools** are complemented by explicit **write tools** with separate schemas and annotations.
 - **Named YNAB concept tools** are the default interface; an **escape-hatch endpoint tool** is optional and secondary.
 

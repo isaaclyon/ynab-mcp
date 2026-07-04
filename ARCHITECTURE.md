@@ -30,7 +30,7 @@ YNAB API (`https://api.ynab.com/v1`)
 
 ### YNAB client boundary
 
-- Responsibility: Centralize YNAB API base URL, bearer authentication, request building, error handling, and future write support.
+- Responsibility: Centralize YNAB API base URL, bearer authentication, request building, error handling, read-through caching, conservative YNAB delta refresh checks, and future write support.
 - Important boundary: All upstream YNAB HTTP calls cross this boundary.
 - What it must not own: MCP tool descriptions, Claude-specific prompt behavior, or presentation-heavy formatting.
 
@@ -54,6 +54,7 @@ YNAB API (`https://api.ynab.com/v1`)
 - Read tools must not call write endpoints.
 - Write tools must not be exposed through a generic read/write executor.
 - Cross-cutting concerns enter through configuration, auth middleware, and shared result/error helpers.
+- Read-through cache and delta request behavior live behind the YNAB client boundary; tool modules receive normal shaped data and do not manage `server_knowledge`.
 
 ## Stable invariants
 
@@ -68,6 +69,8 @@ YNAB API (`https://api.ynab.com/v1`)
 - Every tool has MCP annotations for at least title, read-only/destructive behavior, and external-world access.
 - Tool results should be compact enough for Claude web limits and include IDs needed for follow-up calls.
 - The project uses `plans`, not `budgets`, in new user-facing schemas and docs.
+- The YNAB client may cache successful read-only `GET` responses briefly, deduplicate in-flight reads, and clear cached reads after successful writes.
+- YNAB delta request `server_knowledge` is internal client state and is not exposed as normal MCP tool input.
 
 ## Documentation architecture
 

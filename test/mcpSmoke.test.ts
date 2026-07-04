@@ -150,7 +150,7 @@ describe("MCP smoke", () => {
     await client.close();
   });
 
-  it("handles concurrent stateless tool calls without reusing a connected MCP server", async () => {
+  it("deduplicates concurrent stateless tool reads without reusing a connected MCP server", async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async () => {
       await new Promise((resolve) => setTimeout(resolve, 50));
       return new Response(JSON.stringify({ data: { plans: [{ id: "plan-1", name: "Personal" }] } }), {
@@ -172,7 +172,7 @@ describe("MCP smoke", () => {
 
     expect(firstText(first)).toContain("plan-1");
     expect(firstText(second)).toContain("plan-1");
-    expect(fetchImpl).toHaveBeenCalledTimes(2);
+    expect(fetchImpl).toHaveBeenCalledTimes(1);
 
     await client.close();
   });

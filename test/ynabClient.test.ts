@@ -1,4 +1,4 @@
-import { describe, expect, it, vi } from "vitest";
+import { afterEach, describe, expect, it, vi } from "vitest";
 import { YnabApiError, YnabClient } from "../src/ynab/client.js";
 
 function jsonResponse(body: unknown, init?: ResponseInit): Response {
@@ -10,6 +10,10 @@ function jsonResponse(body: unknown, init?: ResponseInit): Response {
 }
 
 describe("YnabClient", () => {
+  afterEach(() => {
+    vi.useRealTimers();
+  });
+
   it("builds authenticated plan-scoped GET requests", async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ data: { accounts: [] } }));
     const client = new YnabClient({
@@ -57,6 +61,316 @@ describe("YnabClient", () => {
       status: 401,
       body: { error: { detail: "nope" } },
     } satisfies Partial<YnabApiError>);
+  });
+
+  it("caches repeated GET requests within the read-through cache TTL", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ data: { accounts: [{ id: "account-1" }] } }));
+    const client = new YnabClient({
+      baseUrl: new URL("https://api.ynab.test/v1"),
+      accessToken: "secret-token",
+      fetchImpl,
+      cache: { ttlMs: 60_000 },
+    });
+
+    const first = await client.listAccounts("plan-1");
+    const second = await client.listAccounts("plan-1");
+
+    expect(second).toBe(first);
+    expect(fetchImpl).toHaveBeenCalledOnce();
+  });
+
+  it("deduplicates concurrent GET requests for the same cache key", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(
+      async () =>
+        new Promise<Response>((resolve) => {
+          setTimeout(() => resolve(jsonResponse({ data: { plans: [{ id: "plan-1" }] } })), 10);
+        }),
+    );
+    const client = new YnabClient({
+      baseUrl: new URL("https://api.ynab.test/v1"),
+      accessToken: "secret-token",
+      fetchImpl,
+    });
+
+    const [first, second] = await Promise.all([client.listPlans(), client.listPlans()]);
+
+    expect(second).toBe(first);
+    expect(fetchImpl).toHaveBeenCalledOnce();
+  });
+
+  it("uses no-change delta requests after cache expiry without refetching full account lists", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-03T00:00:00.000Z"));
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: {
+            server_knowledge: 10,
+            accounts: [
+              { id: "account-1", name: "Checking", balance: 0 },
+              { id: "account-2", name: "Savings", balance: 1000 },
+            ],
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: {
+            server_knowledge: 11,
+            accounts: [],
+          },
+        }),
+      );
+    const client = new YnabClient({
+      baseUrl: new URL("https://api.ynab.test/v1"),
+      accessToken: "secret-token",
+      fetchImpl,
+      cache: { ttlMs: 10 },
+    });
+
+    await client.listAccounts("plan-1");
+    vi.advanceTimersByTime(11);
+    const refreshed = await client.listAccounts("plan-1");
+
+    expect(String(fetchImpl.mock.calls[1]?.[0])).toBe(
+      "https://api.ynab.test/v1/plans/plan-1/accounts?last_knowledge_of_server=10",
+    );
+    expect(refreshed).toEqual({
+      data: {
+        server_knowledge: 11,
+        accounts: [
+          { id: "account-1", name: "Checking", balance: 0 },
+          { id: "account-2", name: "Savings", balance: 1000 },
+        ],
+      },
+    });
+  });
+
+  it("full-refreshes delta-supported reads when deltas contain changes to preserve upstream order", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-03T00:00:00.000Z"));
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: {
+            server_knowledge: 10,
+            accounts: [
+              { id: "account-1", name: "Checking", balance: 0 },
+              { id: "account-2", name: "Savings", balance: 1000 },
+            ],
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: {
+            server_knowledge: 11,
+            accounts: [{ id: "account-2", name: "Renamed Savings", balance: 2500 }],
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: {
+            server_knowledge: 11,
+            accounts: [
+              { id: "account-2", name: "Renamed Savings", balance: 2500 },
+              { id: "account-1", name: "Checking", balance: 0 },
+            ],
+          },
+        }),
+      );
+    const client = new YnabClient({
+      baseUrl: new URL("https://api.ynab.test/v1"),
+      accessToken: "secret-token",
+      fetchImpl,
+      cache: { ttlMs: 10 },
+    });
+
+    await client.listAccounts("plan-1");
+    vi.advanceTimersByTime(11);
+    const refreshed = await client.listAccounts("plan-1");
+
+    expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
+      "https://api.ynab.test/v1/plans/plan-1/accounts",
+      "https://api.ynab.test/v1/plans/plan-1/accounts?last_knowledge_of_server=10",
+      "https://api.ynab.test/v1/plans/plan-1/accounts",
+    ]);
+    expect(refreshed).toEqual({
+      data: {
+        server_knowledge: 11,
+        accounts: [
+          { id: "account-2", name: "Renamed Savings", balance: 2500 },
+          { id: "account-1", name: "Checking", balance: 0 },
+        ],
+      },
+    });
+  });
+
+  it("full-refreshes transaction reads after cache expiry because tool output is order and filter sensitive", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-03T00:00:00.000Z"));
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: {
+            server_knowledge: 30,
+            transactions: [{ id: "txn-old", date: "2026-07-01", amount: -1000 }],
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: {
+            server_knowledge: 31,
+            transactions: [{ id: "txn-new", date: "2026-07-03", amount: -2000 }],
+          },
+        }),
+      );
+    const client = new YnabClient({
+      baseUrl: new URL("https://api.ynab.test/v1"),
+      accessToken: "secret-token",
+      fetchImpl,
+      cache: { ttlMs: 10 },
+    });
+
+    await client.listTransactions("plan-1", "2026-07-02");
+    vi.advanceTimersByTime(11);
+    const refreshed = await client.listTransactions("plan-1", "2026-07-02");
+
+    expect(String(fetchImpl.mock.calls[1]?.[0])).toBe(
+      "https://api.ynab.test/v1/plans/plan-1/transactions?since_date=2026-07-02",
+    );
+    expect(refreshed).toEqual({
+      data: {
+        server_knowledge: 31,
+        transactions: [{ id: "txn-new", date: "2026-07-03", amount: -2000 }],
+      },
+    });
+  });
+
+  it("full-refreshes category reads when nested category deltas contain changes", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-03T00:00:00.000Z"));
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: {
+            server_knowledge: 20,
+            category_groups: [
+              {
+                id: "group-1",
+                name: "Everyday",
+                categories: [
+                  { id: "cat-1", name: "Coffee", balance: 0 },
+                  { id: "cat-2", name: "Groceries", balance: 1000 },
+                ],
+              },
+              {
+                id: "group-2",
+                name: "Savings",
+                categories: [{ id: "cat-3", name: "Emergency Fund", balance: 5000 }],
+              },
+            ],
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: {
+            server_knowledge: 21,
+            category_groups: [
+              {
+                id: "group-2",
+                categories: [{ id: "cat-1", name: "Coffee Beans", balance: 500 }],
+              },
+            ],
+          },
+        }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: {
+            server_knowledge: 21,
+            category_groups: [
+              {
+                id: "group-1",
+                name: "Everyday",
+                categories: [{ id: "cat-2", name: "Groceries", balance: 1000 }],
+              },
+              {
+                id: "group-2",
+                name: "Savings",
+                categories: [
+                  { id: "cat-3", name: "Emergency Fund", balance: 5000 },
+                  { id: "cat-1", name: "Coffee Beans", balance: 500 },
+                ],
+              },
+            ],
+          },
+        }),
+      );
+    const client = new YnabClient({
+      baseUrl: new URL("https://api.ynab.test/v1"),
+      accessToken: "secret-token",
+      fetchImpl,
+      cache: { ttlMs: 10 },
+    });
+
+    await client.listCategories("plan-1");
+    vi.advanceTimersByTime(11);
+    const refreshed = await client.listCategories("plan-1");
+
+    expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
+      "https://api.ynab.test/v1/plans/plan-1/categories",
+      "https://api.ynab.test/v1/plans/plan-1/categories?last_knowledge_of_server=20",
+      "https://api.ynab.test/v1/plans/plan-1/categories",
+    ]);
+    expect(refreshed).toEqual({
+      data: {
+        server_knowledge: 21,
+        category_groups: [
+          {
+            id: "group-1",
+            name: "Everyday",
+            categories: [{ id: "cat-2", name: "Groceries", balance: 1000 }],
+          },
+          {
+            id: "group-2",
+            name: "Savings",
+            categories: [
+              { id: "cat-3", name: "Emergency Fund", balance: 5000 },
+              { id: "cat-1", name: "Coffee Beans", balance: 500 },
+            ],
+          },
+        ],
+      },
+    });
+  });
+
+  it("clears cached reads after successful write requests", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse({ data: { payees: [{ id: "payee-1", name: "Old Coffee" }] } }))
+      .mockResolvedValueOnce(jsonResponse({ data: { payee: { id: "payee-2", name: "New Coffee" } } }, { status: 201 }))
+      .mockResolvedValueOnce(jsonResponse({ data: { payees: [{ id: "payee-2", name: "New Coffee" }] } }));
+    const client = new YnabClient({
+      baseUrl: new URL("https://api.ynab.test/v1"),
+      accessToken: "secret-token",
+      fetchImpl,
+      cache: { ttlMs: 60_000 },
+    });
+
+    await client.listPayees("plan-1");
+    await client.createPayee("plan-1", { name: "New Coffee" });
+    const refreshed = await client.listPayees("plan-1");
+
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+    expect(refreshed).toEqual({ data: { payees: [{ id: "payee-2", name: "New Coffee" }] } });
   });
 
   it("creates categories with the expected wrapper", async () => {

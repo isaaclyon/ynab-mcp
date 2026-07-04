@@ -2,7 +2,30 @@ export type YnabClientConfig = {
   baseUrl: URL;
   accessToken: string;
   fetchImpl?: typeof fetch;
+  cache?: YnabClientCacheConfig;
 };
+
+export type YnabClientCacheConfig = {
+  enabled?: boolean;
+  ttlMs?: number;
+};
+
+type YnabHttpMethod = "GET" | "POST" | "PATCH" | "PUT" | "DELETE";
+
+type CacheEntry = {
+  value: unknown;
+  expiresAtMs: number;
+  serverKnowledge?: number;
+};
+
+type JsonRecord = Record<string, unknown>;
+
+const DEFAULT_READ_CACHE_TTL_MS = 30_000;
+const DELTA_SUPPORTED_GET_PATHS = [
+  /^\/plans\/[^/]+\/accounts$/,
+  /^\/plans\/[^/]+\/categories$/,
+  /^\/plans\/[^/]+\/payees$/,
+] as const;
 
 export type CategoryGroupInput = {
   name: string;
@@ -83,11 +106,18 @@ export class YnabClient {
   private readonly baseUrl: URL;
   private readonly accessToken: string;
   private readonly fetchImpl: typeof fetch;
+  private readonly readCacheEnabled: boolean;
+  private readonly readCacheTtlMs: number;
+  private readonly readCache = new Map<string, CacheEntry>();
+  private readonly inFlightReads = new Map<string, Promise<unknown>>();
+  private cacheGeneration = 0;
 
   constructor(config: YnabClientConfig) {
     this.baseUrl = config.baseUrl;
     this.accessToken = config.accessToken;
     this.fetchImpl = config.fetchImpl ?? fetch;
+    this.readCacheTtlMs = config.cache?.ttlMs ?? DEFAULT_READ_CACHE_TTL_MS;
+    this.readCacheEnabled = (config.cache?.enabled ?? true) && this.readCacheTtlMs > 0;
   }
 
   listPlans(): Promise<unknown> {
@@ -254,16 +284,97 @@ export class YnabClient {
   }
 
   private async request(
-    method: "GET" | "POST" | "PATCH" | "PUT" | "DELETE",
+    method: YnabHttpMethod,
     path: string,
     query?: Record<string, string>,
     body?: unknown,
   ): Promise<unknown> {
+    if (method === "GET" && this.readCacheEnabled) {
+      return this.cachedGet(path, query ?? {});
+    }
+
+    const url = this.buildUrl(path, query ?? {});
+    const responseBody = await this.fetchJson(method, url, body);
+    if (method !== "GET") {
+      this.invalidateReadCache();
+    }
+    return responseBody;
+  }
+
+  private async cachedGet(path: string, query: Record<string, string>): Promise<unknown> {
+    const cacheKey = cacheKeyFor(path, query);
+    const cached = this.readCache.get(cacheKey);
+    if (cached && cached.expiresAtMs > Date.now()) {
+      return cached.value;
+    }
+
+    const inFlight = this.inFlightReads.get(cacheKey);
+    if (inFlight) {
+      return inFlight;
+    }
+
+    const generation = this.cacheGeneration;
+    const request = this.fetchAndCacheGet(path, query, cached, cacheKey, generation);
+    this.inFlightReads.set(cacheKey, request);
+    try {
+      return await request;
+    } finally {
+      if (this.inFlightReads.get(cacheKey) === request) {
+        this.inFlightReads.delete(cacheKey);
+      }
+    }
+  }
+
+  private async fetchAndCacheGet(
+    path: string,
+    query: Record<string, string>,
+    cached: CacheEntry | undefined,
+    cacheKey: string,
+    generation: number,
+  ): Promise<unknown> {
+    const deltaSupported = supportsDelta(path, query);
+    const canUseDelta = deltaSupported && cached?.serverKnowledge !== undefined;
+    const requestQuery = canUseDelta ? { ...query, last_knowledge_of_server: String(cached.serverKnowledge) } : query;
+    const responseBody = await this.fetchJson("GET", this.buildUrl(path, requestQuery));
+    const value = canUseDelta ? await this.resolveDeltaRefresh(path, query, cached.value, responseBody) : responseBody;
+
+    if (this.cacheGeneration === generation) {
+      this.readCache.set(cacheKey, {
+        value,
+        expiresAtMs: Date.now() + this.readCacheTtlMs,
+        serverKnowledge: serverKnowledgeOf(value),
+      });
+    }
+    return value;
+  }
+
+  private invalidateReadCache(): void {
+    this.cacheGeneration += 1;
+    this.readCache.clear();
+    this.inFlightReads.clear();
+  }
+
+  private async resolveDeltaRefresh(
+    path: string,
+    query: Record<string, string>,
+    cachedValue: unknown,
+    deltaValue: unknown,
+  ): Promise<unknown> {
+    if (hasDeltaChanges(deltaValue)) {
+      return this.fetchJson("GET", this.buildUrl(path, query));
+    }
+    return withServerKnowledge(cachedValue, serverKnowledgeOf(deltaValue));
+  }
+
+  private buildUrl(path: string, query: Record<string, string>): URL {
     const url = new URL(path.replace(/^\//, ""), appendSlash(this.baseUrl));
     for (const [key, value] of Object.entries(query ?? {})) {
       url.searchParams.set(key, value);
     }
+    return url;
+  }
 
+  private async fetchJson(method: YnabHttpMethod, url: URL, body?: unknown): Promise<unknown> {
     const headers: Record<string, string> = {
       Accept: "application/json",
       Authorization: `Bearer ${this.accessToken}`,
@@ -284,6 +395,55 @@ export class YnabClient {
     }
     return responseBody;
   }
+}
+
+function supportsDelta(path: string, query: Record<string, string>): boolean {
+  return Object.keys(query).length === 0 && DELTA_SUPPORTED_GET_PATHS.some((pattern) => pattern.test(path));
+}
+
+function cacheKeyFor(path: string, query: Record<string, string>): string {
+  const searchParams = new URLSearchParams();
+  for (const [key, value] of Object.entries(query).sort(([left], [right]) => left.localeCompare(right))) {
+    searchParams.set(key, value);
+  }
+  const queryString = searchParams.toString();
+  return queryString ? `${path}?${queryString}` : path;
+}
+
+function serverKnowledgeOf(value: unknown): number | undefined {
+  if (!isRecord(value) || !isRecord(value.data)) {
+    return undefined;
+  }
+  const serverKnowledge = value.data.server_knowledge;
+  return typeof serverKnowledge === "number" ? serverKnowledge : undefined;
+}
+
+function isRecord(value: unknown): value is JsonRecord {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function hasDeltaChanges(value: unknown): boolean {
+  if (!isRecord(value) || !isRecord(value.data)) {
+    return true;
+  }
+  return Object.entries(value.data).some(([key, entry]) => key !== "server_knowledge" && hasContent(entry));
+}
+
+function hasContent(value: unknown): boolean {
+  if (Array.isArray(value)) {
+    return value.length > 0;
+  }
+  if (isRecord(value)) {
+    return Object.keys(value).length > 0;
+  }
+  return value !== null && value !== undefined;
+}
+
+function withServerKnowledge(value: unknown, serverKnowledge: number | undefined): unknown {
+  if (serverKnowledge === undefined || !isRecord(value) || !isRecord(value.data)) {
+    return value;
+  }
+  return { ...value, data: { ...value.data, server_knowledge: serverKnowledge } };
 }
 
 function appendSlash(url: URL): URL {

@@ -29,6 +29,36 @@ This file captures medium-term direction and sequencing. Temporary checklists li
 - Why later: Deployment shape should follow the validated prototype rather than lead it.
 - Depends on: Phase 2 working in Claude web.
 
+### Phase 3.5 — Performance and quality hardening
+
+- Goal: Improve real-world Claude latency, upstream YNAB quota use, recoverability, and maintainability before expanding the tool surface further.
+- Why after the prototype: These improvements are most valuable once the current named tool set is stable enough to measure and harden.
+- Depends on: Phase 2 local tool behavior; Claude web/public HTTPS validation is still needed for deployment smoke verification.
+
+#### Hardening milestones
+
+1. **Read-through cache and YNAB delta support** — implemented for cache and account/category/payee delta freshness checks
+   - Add a small cache at the YNAB client boundary for safe `GET` requests, especially repeated plan/category/payee/month/transaction reads.
+   - Add YNAB delta request support where the API exposes `server_knowledge` or equivalent incremental sync fields; current implementation is conservative and uses account/category/payee deltas as freshness checks, full-refreshing when a delta contains changes.
+   - Why first: reduces upstream calls, improves Claude response latency, and localizes performance behavior behind the YNAB client seam.
+2. **Structured MCP tool errors**
+   - Translate YNAB client failures into safe, useful MCP tool errors instead of generic internal failures.
+   - Preserve the invariant that YNAB tokens, owner passphrases, OAuth codes, and bearer tokens are never logged or returned.
+   - Why second: helps Claude recover from bad IDs, validation issues, upstream authorization failures, and rate limits.
+3. **Concept-focused tool module split**
+   - Split large read/write tool modules by YNAB concept, such as plans, accounts, categories, payees, months, transactions, and scheduled transactions.
+   - Preserve read/write separation in code paths, schemas, docs, and annotations.
+   - Why third: improves locality and keeps named YNAB concept tools easy to extend without creating shallow pass-through modules.
+4. **Typed shaped-output schemas**
+   - Add lightweight validation for key shaped outputs or YNAB response slices while keeping `unknown` at the external API boundary.
+   - Why later: improves quality and catches upstream response-shape drift without blocking current local use.
+5. **Write-tool safety UX improvements**
+   - Explore preview/confirm patterns or stricter delete inputs for high-risk mutations such as transaction and scheduled transaction deletes.
+   - Why later: write tools already have annotations, but personal finance mutations benefit from extra friction where Claude could otherwise act too quickly.
+6. **Claude web deployment smoke verification**
+   - Add a repeatable public HTTPS smoke checklist or script covering OAuth authorization, `tools/list`, and at least one read-only YNAB call from Claude web.
+   - Why later: validates the primary runtime constraint before broadening functionality further.
+
 ### Phase 4 — Additional write tools and optional escape hatch
 
 - Goal: Add more explicit write tools beyond category/category-group and transaction create/update, and optionally a constrained read-only endpoint escape hatch.
