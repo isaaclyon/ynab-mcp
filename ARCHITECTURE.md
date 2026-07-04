@@ -37,7 +37,7 @@ YNAB API (`https://api.ynab.com/v1`)
 ### Tool modules
 
 - Responsibility: Define named YNAB concept tools with tight schemas, annotations, and compact result shaping.
-- Important boundary: Read tools and write tools live in separate modules.
+- Important boundary: Read tools and write tools live behind separate aggregate entrypoints and delegate to concept-focused slices for plans, accounts, categories, payees, months, transactions, and scheduled transactions.
 - What they must not own: generic arbitrary endpoint execution as the primary API.
 
 ### Hosting boundary
