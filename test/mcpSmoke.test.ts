@@ -344,17 +344,17 @@ describe("MCP smoke", () => {
         return jsonResponse({
           data: {
             transactions: [
-              { id: "txn-account-1", account_id: "account-1", account_name: "Checking", amount: -1000, ignored_extra: true },
-              { id: "txn-account-2", account_id: "account-1", account_name: "Checking", amount: -2000 },
+              { id: "txn-account-1", date: "2026-07-03", account_id: "account-1", account_name: "Checking", amount: -1000, deleted: false, ignored_extra: true },
+              { id: "txn-account-2", account_id: "account-1", account_name: "Checking", amount: "not-a-number" },
             ],
           },
         });
       }
       if (requestUrl.pathname === "/v1/plans/plan-1/payees/payee-1/transactions" && init?.method === "GET") {
-        return jsonResponse({ data: { transactions: [{ id: "txn-payee-1", payee_id: "payee-1", payee_name: "Coffee Shop" }] } });
+        return jsonResponse({ data: { transactions: [{ id: "txn-payee-1", date: "2026-07-03", amount: -12340, account_id: "account-1", account_name: "Checking", payee_id: "payee-1", payee_name: "Coffee Shop", deleted: false }] } });
       }
       if (requestUrl.pathname === "/v1/plans/plan-1/months/2026-07-01/transactions" && init?.method === "GET") {
-        return jsonResponse({ data: { transactions: [{ id: "txn-month-1", date: "2026-07-03", amount: -5000 }] } });
+        return jsonResponse({ data: { transactions: [{ id: "txn-month-1", date: "2026-07-03", amount: -5000, account_id: "account-1", account_name: "Checking", deleted: false }] } });
       }
       if (requestUrl.pathname === "/v1/plans/plan-1/transactions/txn-cat-1" && init?.method === "DELETE") {
         return jsonResponse({ data: { transaction: { id: "txn-cat-1", deleted: true } } });
@@ -372,7 +372,7 @@ describe("MCP smoke", () => {
       transactions: [{ id: "txn-cat-1", category_id: "cat-1", payee_name: "Coffee Shop" }],
     });
     expect(JSON.parse(firstText(await client.callTool({ name: "ynab_list_account_transactions", arguments: { plan_id: "plan-1", account_id: "account-1", limit: 1 } }, CallToolResultSchema))) as unknown).toEqual({
-      transactions: [{ id: "txn-account-1", amount: -1000, account_id: "account-1", account_name: "Checking" }],
+      transactions: [{ id: "txn-account-1", date: "2026-07-03", amount: -1000, account_id: "account-1", account_name: "Checking", deleted: false }],
     });
     expect(JSON.parse(firstText(await client.callTool({ name: "ynab_list_payee_transactions", arguments: { plan_id: "plan-1", payee_id: "payee-1" } }, CallToolResultSchema))) as unknown).toMatchObject({
       transactions: [{ id: "txn-payee-1", payee_id: "payee-1" }],
@@ -406,6 +406,7 @@ describe("MCP smoke", () => {
                 payee_name: "Coffee Shop",
                 category_id: "cat-1",
                 category_name: "Coffee",
+                deleted: false,
                 ignored_extra: true,
               },
               { id: "sched-2", amount: -2000, frequency: "weekly" },
@@ -417,7 +418,7 @@ describe("MCP smoke", () => {
         return jsonResponse({ data: { scheduled_transaction: { id: "sched-3", frequency: "monthly", payee_name: "Coffee Shop" } } }, 201);
       }
       if (requestUrl.pathname === "/v1/plans/plan-1/scheduled_transactions/sched-1" && init?.method === "GET") {
-        return jsonResponse({ data: { scheduled_transaction: { id: "sched-1", amount: -12340, frequency: "monthly", memo: "Beans" } } });
+        return jsonResponse({ data: { scheduled_transaction: { id: "sched-1", date_next: "2026-08-15", amount: -12340, frequency: "monthly", account_id: "account-1", account_name: "Checking", memo: "Beans", deleted: false } } });
       }
       if (requestUrl.pathname === "/v1/plans/plan-1/scheduled_transactions/sched-1" && init?.method === "PUT") {
         return jsonResponse({ data: { scheduled_transaction: { id: "sched-1", frequency: "weekly", memo: null } } });
@@ -447,6 +448,7 @@ describe("MCP smoke", () => {
           payee_name: "Coffee Shop",
           category_id: "cat-1",
           category_name: "Coffee",
+          deleted: false,
         },
       ],
     });

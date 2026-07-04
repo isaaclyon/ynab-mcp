@@ -50,8 +50,9 @@ This file captures medium-term direction and sequencing. Temporary checklists li
    - Split large read/write tool modules by YNAB concept, such as plans, accounts, categories, payees, months, transactions, and scheduled transactions.
    - Preserve read/write separation in code paths, schemas, docs, and annotations.
    - Why third: improves locality and keeps named YNAB concept tools easy to extend without creating shallow pass-through modules.
-4. **Typed shaped-output schemas**
+4. **Typed shaped-output schemas** — implemented
    - Add lightweight validation for key shaped outputs or YNAB response slices while keeping `unknown` at the external API boundary.
+   - Current implementation validates compact tool response slices at the shaping seam and lets non-YNAB shape validation errors follow the normal MCP internal-error path.
    - Why later: improves quality and catches upstream response-shape drift without blocking current local use.
 5. **Write-tool safety UX improvements**
    - Explore preview/confirm patterns or stricter delete inputs for high-risk mutations such as transaction and scheduled transaction deletes.

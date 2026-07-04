@@ -1,6 +1,8 @@
 import { describe, expect, it } from "vitest";
 import { YnabApiError } from "../src/ynab/client.js";
 import { ynabApiErrorPayload, ynabResult } from "../src/tools/result.js";
+import { shapePlans } from "../src/tools/shaping.js";
+import { YnabResponseShapeError } from "../src/tools/ynabResponseSchemas.js";
 
 describe("tool result error shaping", () => {
   it.each([
@@ -71,4 +73,8 @@ describe("tool result error shaping", () => {
     expect(first?.type).toBe("text");
     expect(JSON.parse(first?.type === "text" ? first.text : "{}") as unknown).toEqual(result.structuredContent);
   });
+  it("does not convert shaped-output validation failures into structured YNAB API errors", async () => {
+    await expect(ynabResult(Promise.resolve({ data: {} }), shapePlans)).rejects.toBeInstanceOf(YnabResponseShapeError);
+  });
+
 });
