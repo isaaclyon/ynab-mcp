@@ -46,7 +46,7 @@ This file captures medium-term direction and sequencing. Temporary checklists li
    - Preserve the invariant that YNAB tokens, owner passphrases, OAuth codes, and bearer tokens are never logged or returned.
    - Current handling covers bad requests/validation (`400`), unauthorized credentials (`401`), forbidden resources (`403`), missing IDs (`404`), conflicts (`409`), rate limits (`429`), and upstream `5xx` failures.
    - Why second: helps Claude recover from bad IDs, validation issues, upstream authorization failures, and rate limits.
-3. **Concept-focused tool module split**
+3. **Concept-focused tool module split** — implemented
    - Split large read/write tool modules by YNAB concept, such as plans, accounts, categories, payees, months, transactions, and scheduled transactions.
    - Preserve read/write separation in code paths, schemas, docs, and annotations.
    - Why third: improves locality and keeps named YNAB concept tools easy to extend without creating shallow pass-through modules.

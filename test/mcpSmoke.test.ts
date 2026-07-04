@@ -31,27 +31,39 @@ describe("MCP smoke", () => {
     await client.connect(transport);
 
     const tools = await client.listTools();
-    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_list_plans");
-    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_list_months");
-    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_get_month_category");
-    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_update_month_category");
-    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_create_category");
-    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_create_transaction");
-    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_update_transaction");
-    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_delete_transaction");
-    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_list_account_transactions");
-    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_list_category_transactions");
-    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_list_payee_transactions");
-    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_list_month_transactions");
-    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_list_scheduled_transactions");
-    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_get_scheduled_transaction");
-    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_list_payees");
-    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_get_payee");
-    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_create_payee");
-    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_update_payee");
-    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_create_scheduled_transaction");
-    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_update_scheduled_transaction");
-    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_delete_scheduled_transaction");
+    const expectedToolNames = [
+      "ynab_list_plans",
+      "ynab_list_accounts",
+      "ynab_list_categories",
+      "ynab_get_category",
+      "ynab_list_payees",
+      "ynab_get_payee",
+      "ynab_list_months",
+      "ynab_get_month",
+      "ynab_get_month_category",
+      "ynab_search_transactions",
+      "ynab_list_category_transactions",
+      "ynab_list_account_transactions",
+      "ynab_list_payee_transactions",
+      "ynab_list_month_transactions",
+      "ynab_get_transaction",
+      "ynab_list_scheduled_transactions",
+      "ynab_get_scheduled_transaction",
+      "ynab_create_payee",
+      "ynab_update_payee",
+      "ynab_create_category_group",
+      "ynab_update_category_group",
+      "ynab_create_category",
+      "ynab_update_category",
+      "ynab_update_month_category",
+      "ynab_create_transaction",
+      "ynab_update_transaction",
+      "ynab_delete_transaction",
+      "ynab_create_scheduled_transaction",
+      "ynab_update_scheduled_transaction",
+      "ynab_delete_scheduled_transaction",
+    ];
+    expect(new Set(tools.tools.map((tool) => tool.name))).toEqual(new Set(expectedToolNames));
     expect(tools.tools.find((tool) => tool.name === "ynab_list_plans")?.annotations).toMatchObject({
       readOnlyHint: true,
       destructiveHint: false,
