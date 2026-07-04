@@ -13,6 +13,8 @@ import {
   shapePayee,
   shapePayees,
   shapePlans,
+  shapeScheduledTransaction,
+  shapeScheduledTransactions,
   shapeTransaction,
   shapeTransactions,
   type TransactionFilters,
@@ -23,6 +25,11 @@ const accountId = z.string().trim().min(1).describe("Account ID returned by ynab
 const categoryId = z.string().trim().min(1).describe("Category ID returned by ynab_list_categories.");
 const payeeId = z.string().trim().min(1).describe("Payee ID returned by ynab_list_payees.");
 const transactionId = z.string().trim().min(1).describe("Transaction ID returned by ynab_search_transactions or transaction list tools.");
+const scheduledTransactionId = z
+  .string()
+  .trim()
+  .min(1)
+  .describe("Scheduled transaction ID returned by ynab_list_scheduled_transactions.");
 const month = z
   .string()
   .trim()
@@ -221,6 +228,29 @@ export function registerReadTools(server: McpServer, ynab: YnabClient): void {
     },
     async ({ plan_id, month: monthValue, limit }) =>
       jsonResult(shapeTransactions(await ynab.listMonthTransactions(plan_id, monthValue), { limit })),
+  );
+
+  server.registerTool(
+    "ynab_list_scheduled_transactions",
+    {
+      title: "List YNAB scheduled transactions",
+      description: "List scheduled transactions for a YNAB plan. Returns compact transaction-like records with scheduled transaction IDs.",
+      inputSchema: { plan_id: planId, limit: z.number().int().min(1).max(100).default(25) },
+      annotations: { ...readOnlyAnnotations, title: "List YNAB scheduled transactions" },
+    },
+    async ({ plan_id, limit }) => jsonResult(shapeScheduledTransactions(await ynab.listScheduledTransactions(plan_id), limit)),
+  );
+
+  server.registerTool(
+    "ynab_get_scheduled_transaction",
+    {
+      title: "Get YNAB scheduled transaction",
+      description: "Get one scheduled transaction by ID for a YNAB plan.",
+      inputSchema: { plan_id: planId, scheduled_transaction_id: scheduledTransactionId },
+      annotations: { ...readOnlyAnnotations, title: "Get YNAB scheduled transaction" },
+    },
+    async ({ plan_id, scheduled_transaction_id }) =>
+      jsonResult(shapeScheduledTransaction(await ynab.getScheduledTransaction(plan_id, scheduled_transaction_id))),
   );
 
   server.registerTool(

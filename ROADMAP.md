@@ -6,7 +6,7 @@ This file captures medium-term direction and sequencing. Temporary checklists li
 
 - Build a personal YNAB MCP server optimized for Claude web custom connectors.
 - Keep named read-only tools over YNAB plans/accounts/categories/months/transactions.
-- Add explicit write tools without exposing generic mutation; current write slices cover category/category-group create/update, payee create/update, month/category budgeted amount update, and single transaction create/update/delete.
+- Add explicit write tools without exposing generic mutation; current write slices cover category/category-group create/update, payee create/update, month/category budgeted amount update, single transaction create/update/delete, and scheduled transaction create/update/delete.
 
 ## Active phases
 
@@ -19,7 +19,7 @@ This file captures medium-term direction and sequencing. Temporary checklists li
 
 ### Phase 2 — Local Streamable HTTP prototype
 
-- Goal: Implement and test a TypeScript Streamable HTTP MCP server with read tools plus category/category-group, payee, month/category budgeting, scoped transaction read, and transaction write/delete slices.
+- Goal: Implement and test a TypeScript Streamable HTTP MCP server with read tools plus category/category-group, payee, month/category budgeting, scoped transaction read, transaction write/delete, and scheduled transaction slices.
 - Why now: Local MCP use is working and is the current focus before public Claude web deployment.
 - Depends on: Phase 1 auth and hosting decisions.
 
@@ -49,7 +49,7 @@ This file captures medium-term direction and sequencing. Temporary checklists li
    - Add account/category/payee/month transaction list tools plus `ynab_delete_transaction`.
    - Endpoints: `GET /plans/{plan_id}/accounts/{account_id}/transactions`, `GET /plans/{plan_id}/categories/{category_id}/transactions`, `GET /plans/{plan_id}/payees/{payee_id}/transactions`, `GET /plans/{plan_id}/months/{month}/transactions`, and `DELETE /plans/{plan_id}/transactions/{transaction_id}`.
    - Safety note: transaction delete must be explicitly destructive in annotations and descriptions.
-4. **Scheduled transaction tools**
+4. **Scheduled transaction tools** — implemented
    - Add list/create/get/update/delete tools for scheduled transactions.
    - Endpoints: `GET/POST /plans/{plan_id}/scheduled_transactions`, `GET/PUT/DELETE /plans/{plan_id}/scheduled_transactions/{scheduled_transaction_id}`.
    - Safety note: scheduled transaction payloads are transaction-like but should get separate schemas and tests.

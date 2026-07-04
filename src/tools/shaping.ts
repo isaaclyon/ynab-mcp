@@ -85,6 +85,18 @@ export function shapeTransactionWrite(response: unknown): unknown {
   return transaction ? { transaction: shapeTransactionRecord(transaction) } : response;
 }
 
+export function shapeScheduledTransactions(response: unknown, limit: number): unknown {
+  const scheduledTransactions = getArray(response, ["data", "scheduled_transactions"])
+    .slice(0, limit)
+    .map(shapeScheduledTransactionRecord);
+  return { scheduled_transactions: scheduledTransactions };
+}
+
+export function shapeScheduledTransaction(response: unknown): unknown {
+  const scheduledTransaction = getRecord(response, ["data", "scheduled_transaction"]);
+  return scheduledTransaction ? { scheduled_transaction: shapeScheduledTransactionRecord(scheduledTransaction) } : response;
+}
+
 export type TransactionFilters = {
   limit: number;
   query?: string;
@@ -148,6 +160,30 @@ function shapeTransactionRecord(transaction: JsonRecord): JsonRecord {
     "deleted",
   ]);
   const subtransactions = getArray(transaction, ["subtransactions"]);
+  return subtransactions.length > 0
+    ? { ...shaped, subtransactions: subtransactions.map(shapeSubtransactionRecord) }
+    : shaped;
+}
+
+function shapeScheduledTransactionRecord(scheduledTransaction: JsonRecord): JsonRecord {
+  const shaped = pick(scheduledTransaction, [
+    "id",
+    "date_first",
+    "date_next",
+    "amount",
+    "memo",
+    "flag_color",
+    "frequency",
+    "account_id",
+    "account_name",
+    "payee_id",
+    "payee_name",
+    "category_id",
+    "category_name",
+    "transfer_account_id",
+    "deleted",
+  ]);
+  const subtransactions = getArray(scheduledTransaction, ["subtransactions"]);
   return subtransactions.length > 0
     ? { ...shaped, subtransactions: subtransactions.map(shapeSubtransactionRecord) }
     : shaped;

@@ -43,10 +43,15 @@ describe("MCP smoke", () => {
     expect(tools.tools.map((tool) => tool.name)).toContain("ynab_list_category_transactions");
     expect(tools.tools.map((tool) => tool.name)).toContain("ynab_list_payee_transactions");
     expect(tools.tools.map((tool) => tool.name)).toContain("ynab_list_month_transactions");
+    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_list_scheduled_transactions");
+    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_get_scheduled_transaction");
     expect(tools.tools.map((tool) => tool.name)).toContain("ynab_list_payees");
     expect(tools.tools.map((tool) => tool.name)).toContain("ynab_get_payee");
     expect(tools.tools.map((tool) => tool.name)).toContain("ynab_create_payee");
     expect(tools.tools.map((tool) => tool.name)).toContain("ynab_update_payee");
+    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_create_scheduled_transaction");
+    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_update_scheduled_transaction");
+    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_delete_scheduled_transaction");
     expect(tools.tools.find((tool) => tool.name === "ynab_list_plans")?.annotations).toMatchObject({
       readOnlyHint: true,
       destructiveHint: false,
@@ -91,6 +96,34 @@ describe("MCP smoke", () => {
       openWorldHint: true,
     });
     expect(tools.tools.find((tool) => tool.name === "ynab_delete_transaction")?.annotations).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: true,
+      idempotentHint: false,
+      openWorldHint: true,
+    });
+    expect(tools.tools.find((tool) => tool.name === "ynab_list_scheduled_transactions")?.annotations).toMatchObject({
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: true,
+    });
+    expect(tools.tools.find((tool) => tool.name === "ynab_get_scheduled_transaction")?.annotations).toMatchObject({
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: true,
+    });
+    expect(tools.tools.find((tool) => tool.name === "ynab_create_scheduled_transaction")?.annotations).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: false,
+      openWorldHint: true,
+    });
+    expect(tools.tools.find((tool) => tool.name === "ynab_update_scheduled_transaction")?.annotations).toMatchObject({
+      readOnlyHint: false,
+      destructiveHint: false,
+      idempotentHint: true,
+      openWorldHint: true,
+    });
+    expect(tools.tools.find((tool) => tool.name === "ynab_delete_scheduled_transaction")?.annotations).toMatchObject({
       readOnlyHint: false,
       destructiveHint: true,
       idempotentHint: false,
@@ -339,6 +372,102 @@ describe("MCP smoke", () => {
       transaction: { id: "txn-cat-1", deleted: true },
     });
     expect(fetchImpl.mock.calls.map(([, init]) => init?.method)).toEqual(["GET", "GET", "GET", "GET", "DELETE"]);
+
+    await client.close();
+  });
+
+  it("calls scheduled transaction tools and destructive delete through Streamable HTTP", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async (url, init) => {
+      const requestUrl = new URL(String(url));
+      if (requestUrl.pathname === "/v1/plans/plan-1/scheduled_transactions" && init?.method === "GET") {
+        return jsonResponse({
+          data: {
+            scheduled_transactions: [
+              {
+                id: "sched-1",
+                date_first: "2026-07-15",
+                date_next: "2026-08-15",
+                amount: -12340,
+                frequency: "monthly",
+                account_id: "account-1",
+                account_name: "Checking",
+                payee_name: "Coffee Shop",
+                category_id: "cat-1",
+                category_name: "Coffee",
+                ignored_extra: true,
+              },
+              { id: "sched-2", amount: -2000, frequency: "weekly" },
+            ],
+          },
+        });
+      }
+      if (requestUrl.pathname === "/v1/plans/plan-1/scheduled_transactions" && init?.method === "POST") {
+        return jsonResponse({ data: { scheduled_transaction: { id: "sched-3", frequency: "monthly", payee_name: "Coffee Shop" } } }, 201);
+      }
+      if (requestUrl.pathname === "/v1/plans/plan-1/scheduled_transactions/sched-1" && init?.method === "GET") {
+        return jsonResponse({ data: { scheduled_transaction: { id: "sched-1", amount: -12340, frequency: "monthly", memo: "Beans" } } });
+      }
+      if (requestUrl.pathname === "/v1/plans/plan-1/scheduled_transactions/sched-1" && init?.method === "PUT") {
+        return jsonResponse({ data: { scheduled_transaction: { id: "sched-1", frequency: "weekly", memo: null } } });
+      }
+      if (requestUrl.pathname === "/v1/plans/plan-1/scheduled_transactions/sched-1" && init?.method === "DELETE") {
+        return jsonResponse({ data: { scheduled_transaction: { id: "sched-1", deleted: true } } });
+      }
+      return jsonResponse({ error: { detail: `Unhandled ${init?.method} ${requestUrl.pathname}` } }, 404);
+    });
+    const app = createApp(testConfig({ devAuthBypass: true }), { fetchImpl });
+    const url = await listen(app);
+
+    const transport = new StreamableHTTPClientTransport(new URL("/mcp", url));
+    const client = new Client({ name: "scheduled-transaction-smoke-test", version: "0.1.0" });
+    await client.connect(transport);
+
+    expect(JSON.parse(firstText(await client.callTool({ name: "ynab_list_scheduled_transactions", arguments: { plan_id: "plan-1", limit: 1 } }, CallToolResultSchema))) as unknown).toEqual({
+      scheduled_transactions: [
+        {
+          id: "sched-1",
+          date_first: "2026-07-15",
+          date_next: "2026-08-15",
+          amount: -12340,
+          frequency: "monthly",
+          account_id: "account-1",
+          account_name: "Checking",
+          payee_name: "Coffee Shop",
+          category_id: "cat-1",
+          category_name: "Coffee",
+        },
+      ],
+    });
+    expect(JSON.parse(firstText(await client.callTool(
+      {
+        name: "ynab_create_scheduled_transaction",
+        arguments: {
+          plan_id: "plan-1",
+          account_id: "account-1",
+          date: "2026-07-15",
+          amount: -12340,
+          frequency: "monthly",
+          payee_name: "Coffee Shop",
+          category_id: "cat-1",
+          memo: "Beans",
+        },
+      },
+      CallToolResultSchema,
+    ))) as unknown).toMatchObject({ scheduled_transaction: { id: "sched-3", frequency: "monthly" } });
+    expect(JSON.parse(firstText(await client.callTool({ name: "ynab_get_scheduled_transaction", arguments: { plan_id: "plan-1", scheduled_transaction_id: "sched-1" } }, CallToolResultSchema))) as unknown).toMatchObject({
+      scheduled_transaction: { id: "sched-1", memo: "Beans" },
+    });
+    expect(JSON.parse(firstText(await client.callTool({ name: "ynab_update_scheduled_transaction", arguments: { plan_id: "plan-1", scheduled_transaction_id: "sched-1", memo: null, frequency: "weekly" } }, CallToolResultSchema))) as unknown).toMatchObject({
+      scheduled_transaction: { id: "sched-1", memo: null, frequency: "weekly" },
+    });
+    expect(JSON.parse(firstText(await client.callTool({ name: "ynab_delete_scheduled_transaction", arguments: { plan_id: "plan-1", scheduled_transaction_id: "sched-1" } }, CallToolResultSchema))) as unknown).toEqual({
+      scheduled_transaction: { id: "sched-1", deleted: true },
+    });
+    expect(fetchImpl.mock.calls.map(([, init]) => init?.method)).toEqual(["GET", "POST", "GET", "PUT", "DELETE"]);
+    expect(JSON.parse(String(fetchImpl.mock.calls[1]?.[1]?.body))).toMatchObject({
+      scheduled_transaction: { account_id: "account-1", date: "2026-07-15", amount: -12340, frequency: "monthly", payee_name: "Coffee Shop" },
+    });
+    expect(JSON.parse(String(fetchImpl.mock.calls[3]?.[1]?.body))).toEqual({ scheduled_transaction: { frequency: "weekly", memo: null } });
 
     await client.close();
   });
@@ -604,6 +733,57 @@ describe("MCP smoke", () => {
 
     const deleteResult = await client.callTool(
       { name: "ynab_delete_transaction", arguments: { plan_id: "plan-1", transaction_id: "   " } },
+      CallToolResultSchema,
+    );
+    expect(deleteResult.isError).toBe(true);
+    expect(fetchImpl).not.toHaveBeenCalled();
+
+    await client.close();
+  });
+
+  it("rejects invalid scheduled transaction inputs before calling YNAB", async () => {
+    const fetchImpl = vi.fn<typeof fetch>();
+    const app = createApp(testConfig({ devAuthBypass: true }), { fetchImpl });
+    const url = await listen(app);
+
+    const transport = new StreamableHTTPClientTransport(new URL("/mcp", url));
+    const client = new Client({ name: "invalid-scheduled-transactions-smoke-test", version: "0.1.0" });
+    await client.connect(transport);
+
+    const listResult = await client.callTool(
+      { name: "ynab_list_scheduled_transactions", arguments: { plan_id: "   " } },
+      CallToolResultSchema,
+    );
+    expect(listResult.isError).toBe(true);
+
+    const createResult = await client.callTool(
+      {
+        name: "ynab_create_scheduled_transaction",
+        arguments: { plan_id: "plan-1", account_id: "account-1", date: "2026-07-15", amount: -12340, frequency: "monthly", payee_id: "payee-1", payee_name: "Coffee Shop" },
+      },
+      CallToolResultSchema,
+    );
+    expect(createResult.isError).toBe(true);
+    expect(firstText(createResult)).toContain("either payee_id or payee_name");
+
+    const emptyUpdateResult = await client.callTool(
+      { name: "ynab_update_scheduled_transaction", arguments: { plan_id: "plan-1", scheduled_transaction_id: "sched-1" } },
+      CallToolResultSchema,
+    );
+    expect(emptyUpdateResult.isError).toBe(true);
+    expect(firstText(emptyUpdateResult)).toContain("At least one scheduled transaction field");
+
+    const frequencyResult = await client.callTool(
+      {
+        name: "ynab_update_scheduled_transaction",
+        arguments: { plan_id: "plan-1", scheduled_transaction_id: "sched-1", frequency: "sometimes" },
+      },
+      CallToolResultSchema,
+    );
+    expect(frequencyResult.isError).toBe(true);
+
+    const deleteResult = await client.callTool(
+      { name: "ynab_delete_scheduled_transaction", arguments: { plan_id: "plan-1", scheduled_transaction_id: "   " } },
       CallToolResultSchema,
     );
     expect(deleteResult.isError).toBe(true);

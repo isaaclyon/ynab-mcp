@@ -3,7 +3,7 @@ import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { YnabClient } from "../ynab/client.js";
 import { createAnnotations, deleteAnnotations, updateAnnotations } from "./annotations.js";
 import { jsonResult } from "./result.js";
-import { shapeCategory, shapeCategoryGroup, shapeMonthCategory, shapePayee, shapeTransactionWrite } from "./shaping.js";
+import { shapeCategory, shapeCategoryGroup, shapeMonthCategory, shapePayee, shapeScheduledTransaction, shapeTransactionWrite } from "./shaping.js";
 
 const planId = z.string().trim().min(1).describe("YNAB plan ID returned by ynab_list_plans.");
 const month = z
@@ -15,6 +15,11 @@ const categoryGroupId = z.string().trim().min(1).describe("YNAB category group I
 const categoryId = z.string().trim().min(1).describe("YNAB category ID returned by ynab_list_categories.");
 const accountId = z.string().trim().min(1).describe("YNAB account ID returned by ynab_list_accounts.");
 const transactionId = z.string().trim().min(1).describe("YNAB transaction ID returned by ynab_search_transactions or transaction list tools.");
+const scheduledTransactionId = z
+  .string()
+  .trim()
+  .min(1)
+  .describe("YNAB scheduled transaction ID returned by ynab_list_scheduled_transactions.");
 const categoryName = z.string().min(1).max(50).describe("Category name. YNAB limits names to 50 characters.");
 const groupName = z.string().min(1).max(50).describe("Category group name. YNAB limits names to 50 characters.");
 const nullableNote = z.string().max(500).nullable().optional().describe("Category note. Pass null to clear an existing note.");
@@ -92,6 +97,45 @@ const transactionUpdateFields = {
   memo: nullableMemo,
   cleared: transactionCleared,
   approved: z.boolean().optional().describe("Whether the transaction is approved."),
+  flag_color: transactionFlagColor,
+} as const;
+const scheduledTransactionFrequency = z
+  .enum([
+    "never",
+    "daily",
+    "weekly",
+    "everyOtherWeek",
+    "twiceAMonth",
+    "every4Weeks",
+    "monthly",
+    "everyOtherMonth",
+    "every3Months",
+    "every4Months",
+    "twiceAYear",
+    "yearly",
+    "everyOtherYear",
+  ])
+  .describe("YNAB scheduled transaction frequency.");
+const scheduledTransactionCreateFields = {
+  account_id: accountId,
+  date: isoDate,
+  amount: z.number().int().describe("Scheduled transaction amount in YNAB milliunits. Outflows are negative; inflows are positive."),
+  frequency: scheduledTransactionFrequency,
+  payee_id: payeeId,
+  payee_name: payeeName,
+  category_id: nullableTransactionCategoryId,
+  memo: nullableMemo,
+  flag_color: transactionFlagColor,
+} as const;
+const scheduledTransactionUpdateFields = {
+  account_id: accountId.optional(),
+  date: isoDate.optional(),
+  amount: z.number().int().optional().describe("Scheduled transaction amount in YNAB milliunits. Outflows are negative; inflows are positive."),
+  frequency: scheduledTransactionFrequency.optional(),
+  payee_id: payeeId,
+  payee_name: payeeName,
+  category_id: nullableTransactionCategoryId,
+  memo: nullableMemo,
   flag_color: transactionFlagColor,
 } as const;
 
@@ -260,6 +304,60 @@ export function registerWriteTools(server: McpServer, ynab: YnabClient): void {
     },
     async ({ plan_id, transaction_id }) =>
       jsonResult(shapeTransactionWrite(await ynab.deleteTransaction(plan_id, transaction_id))),
+  );
+
+  server.registerTool(
+    "ynab_create_scheduled_transaction",
+    {
+      title: "Create YNAB scheduled transaction",
+      description:
+        "Create a scheduled non-split, non-transfer transaction in a YNAB plan. Use account, category, and payee IDs from read tools when possible.",
+      inputSchema: { plan_id: planId, ...scheduledTransactionCreateFields },
+      annotations: { ...createAnnotations, title: "Create YNAB scheduled transaction" },
+    },
+    async ({ plan_id, account_id, date, amount, frequency, payee_id, payee_name, category_id, memo, flag_color }) => {
+      validatePayeeFields(payee_id, payee_name);
+      return jsonResult(
+        shapeScheduledTransaction(
+          await ynab.createScheduledTransaction(
+            plan_id,
+            { account_id, date, amount, frequency, ...compact({ payee_id, payee_name, category_id, memo, flag_color }) },
+          ),
+        ),
+      );
+    },
+  );
+
+  server.registerTool(
+    "ynab_update_scheduled_transaction",
+    {
+      title: "Update YNAB scheduled transaction",
+      description: "Update fields on a scheduled non-split, non-transfer YNAB transaction. Omit unchanged fields.",
+      inputSchema: { plan_id: planId, scheduled_transaction_id: scheduledTransactionId, ...scheduledTransactionUpdateFields },
+      annotations: { ...updateAnnotations, title: "Update YNAB scheduled transaction" },
+    },
+    async ({ plan_id, scheduled_transaction_id, account_id, date, amount, frequency, payee_id, payee_name, category_id, memo, flag_color }) => {
+      validatePayeeFields(payee_id, payee_name);
+      const scheduledTransaction = compact({ account_id, date, amount, frequency, payee_id, payee_name, category_id, memo, flag_color });
+      if (Object.keys(scheduledTransaction).length === 0) {
+        throw new Error("At least one scheduled transaction field must be provided to update.");
+      }
+      return jsonResult(
+        shapeScheduledTransaction(await ynab.updateScheduledTransaction(plan_id, scheduled_transaction_id, scheduledTransaction)),
+      );
+    },
+  );
+
+  server.registerTool(
+    "ynab_delete_scheduled_transaction",
+    {
+      title: "Delete YNAB scheduled transaction",
+      description: "Permanently delete a YNAB scheduled transaction. This is destructive; inspect it first when possible.",
+      inputSchema: { plan_id: planId, scheduled_transaction_id: scheduledTransactionId },
+      annotations: { ...deleteAnnotations, title: "Delete YNAB scheduled transaction" },
+    },
+    async ({ plan_id, scheduled_transaction_id }) =>
+      jsonResult(shapeScheduledTransaction(await ynab.deleteScheduledTransaction(plan_id, scheduled_transaction_id))),
   );
 }
 

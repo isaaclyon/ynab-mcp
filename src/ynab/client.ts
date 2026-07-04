@@ -33,6 +33,33 @@ export type CreateTransactionInput = {
 
 export type UpdateTransactionInput = Partial<Omit<CreateTransactionInput, "import_id">>;
 
+export type ScheduledTransactionInput = {
+  account_id: string;
+  date: string;
+  amount: number;
+  frequency:
+    | "never"
+    | "daily"
+    | "weekly"
+    | "everyOtherWeek"
+    | "twiceAMonth"
+    | "every4Weeks"
+    | "monthly"
+    | "everyOtherMonth"
+    | "every3Months"
+    | "every4Months"
+    | "twiceAYear"
+    | "yearly"
+    | "everyOtherYear";
+  payee_id?: string;
+  payee_name?: string;
+  category_id?: string | null;
+  memo?: string | null;
+  flag_color?: "red" | "orange" | "yellow" | "green" | "blue" | "purple" | null;
+};
+
+export type UpdateScheduledTransactionInput = Partial<ScheduledTransactionInput>;
+
 export type MonthCategoryInput = {
   budgeted: number;
 };
@@ -187,6 +214,43 @@ export class YnabClient {
 
   deleteTransaction(planId: string, transactionId: string): Promise<unknown> {
     return this.request("DELETE", `/plans/${encodeURIComponent(planId)}/transactions/${encodeURIComponent(transactionId)}`);
+  }
+
+  listScheduledTransactions(planId: string): Promise<unknown> {
+    return this.request("GET", `/plans/${encodeURIComponent(planId)}/scheduled_transactions`);
+  }
+
+  createScheduledTransaction(planId: string, scheduledTransaction: ScheduledTransactionInput): Promise<unknown> {
+    return this.request("POST", `/plans/${encodeURIComponent(planId)}/scheduled_transactions`, undefined, {
+      scheduled_transaction: scheduledTransaction,
+    });
+  }
+
+  getScheduledTransaction(planId: string, scheduledTransactionId: string): Promise<unknown> {
+    return this.request(
+      "GET",
+      `/plans/${encodeURIComponent(planId)}/scheduled_transactions/${encodeURIComponent(scheduledTransactionId)}`,
+    );
+  }
+
+  updateScheduledTransaction(
+    planId: string,
+    scheduledTransactionId: string,
+    scheduledTransaction: UpdateScheduledTransactionInput,
+  ): Promise<unknown> {
+    return this.request(
+      "PUT",
+      `/plans/${encodeURIComponent(planId)}/scheduled_transactions/${encodeURIComponent(scheduledTransactionId)}`,
+      undefined,
+      { scheduled_transaction: scheduledTransaction },
+    );
+  }
+
+  deleteScheduledTransaction(planId: string, scheduledTransactionId: string): Promise<unknown> {
+    return this.request(
+      "DELETE",
+      `/plans/${encodeURIComponent(planId)}/scheduled_transactions/${encodeURIComponent(scheduledTransactionId)}`,
+    );
   }
 
   private async request(

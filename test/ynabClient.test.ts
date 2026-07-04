@@ -248,4 +248,51 @@ describe("YnabClient", () => {
     expect(JSON.parse(String(fetchImpl.mock.calls[1]?.[1]?.body))).toEqual({ payee: { name: "Coffee Shop" } });
     expect(JSON.parse(String(fetchImpl.mock.calls[3]?.[1]?.body))).toEqual({ payee: { name: "Coffee Roaster" } });
   });
+
+  it("builds scheduled transaction CRUD requests", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async () => jsonResponse({ data: { scheduled_transaction: { id: "sched-1" } } }));
+    const client = new YnabClient({
+      baseUrl: new URL("https://api.ynab.test/v1"),
+      accessToken: "secret-token",
+      fetchImpl,
+    });
+
+    await client.listScheduledTransactions("plan-1");
+    await client.createScheduledTransaction("plan-1", {
+      account_id: "account-1",
+      date: "2026-07-15",
+      amount: -12340,
+      frequency: "monthly",
+      payee_name: "Coffee Shop",
+      category_id: "cat-1",
+      memo: "Beans",
+      flag_color: "green",
+    });
+    await client.getScheduledTransaction("plan-1", "sched-1");
+    await client.updateScheduledTransaction("plan-1", "sched-1", { memo: null, frequency: "weekly" });
+    await client.deleteScheduledTransaction("plan-1", "sched-1");
+
+    expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
+      "https://api.ynab.test/v1/plans/plan-1/scheduled_transactions",
+      "https://api.ynab.test/v1/plans/plan-1/scheduled_transactions",
+      "https://api.ynab.test/v1/plans/plan-1/scheduled_transactions/sched-1",
+      "https://api.ynab.test/v1/plans/plan-1/scheduled_transactions/sched-1",
+      "https://api.ynab.test/v1/plans/plan-1/scheduled_transactions/sched-1",
+    ]);
+    expect(fetchImpl.mock.calls.map(([, init]) => init?.method)).toEqual(["GET", "POST", "GET", "PUT", "DELETE"]);
+    expect(JSON.parse(String(fetchImpl.mock.calls[1]?.[1]?.body))).toEqual({
+      scheduled_transaction: {
+        account_id: "account-1",
+        date: "2026-07-15",
+        amount: -12340,
+        frequency: "monthly",
+        payee_name: "Coffee Shop",
+        category_id: "cat-1",
+        memo: "Beans",
+        flag_color: "green",
+      },
+    });
+    expect(JSON.parse(String(fetchImpl.mock.calls[3]?.[1]?.body))).toEqual({ scheduled_transaction: { memo: null, frequency: "weekly" } });
+    expect(fetchImpl.mock.calls[4]?.[1]?.body).toBeUndefined();
+  });
 });
