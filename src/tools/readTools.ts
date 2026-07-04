@@ -19,6 +19,7 @@ import {
 } from "./shaping.js";
 
 const planId = z.string().trim().min(1).describe("YNAB plan ID returned by ynab_list_plans.");
+const accountId = z.string().trim().min(1).describe("Account ID returned by ynab_list_accounts.");
 const categoryId = z.string().trim().min(1).describe("Category ID returned by ynab_list_categories.");
 const payeeId = z.string().trim().min(1).describe("Payee ID returned by ynab_list_payees.");
 const transactionId = z.string().trim().min(1).describe("Transaction ID returned by ynab_search_transactions or transaction list tools.");
@@ -184,6 +185,18 @@ export function registerReadTools(server: McpServer, ynab: YnabClient): void {
     },
     async ({ plan_id, category_id, limit }) =>
       jsonResult(shapeTransactions(await ynab.listCategoryTransactions(plan_id, category_id), { limit })),
+  );
+
+  server.registerTool(
+    "ynab_list_account_transactions",
+    {
+      title: "List YNAB account transactions",
+      description: "List transactions for one account in a YNAB plan. Returns compact transaction records.",
+      inputSchema: { plan_id: planId, account_id: accountId, limit: z.number().int().min(1).max(100).default(25) },
+      annotations: { ...readOnlyAnnotations, title: "List YNAB account transactions" },
+    },
+    async ({ plan_id, account_id, limit }) =>
+      jsonResult(shapeTransactions(await ynab.listAccountTransactions(plan_id, account_id), { limit })),
   );
 
   server.registerTool(

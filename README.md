@@ -28,6 +28,7 @@ The current implementation is used locally over Streamable HTTP, with a path to 
   - `ynab_get_month_category`
   - `ynab_get_transaction`
   - `ynab_search_transactions`
+  - `ynab_list_account_transactions`
   - `ynab_list_category_transactions`
   - `ynab_list_payee_transactions`
   - `ynab_list_month_transactions`
@@ -66,7 +67,7 @@ npm run build
 npm start
 ```
 
-`npm run smoke` starts an in-process Streamable HTTP server with mocked YNAB responses and verifies initialize, `tools/list`, and one read-only tool call. The automated test suite also covers category, payee, month/category budgeting, scoped transaction, and transaction write/delete tool calls.
+`npm run smoke` starts an in-process Streamable HTTP server with mocked YNAB responses and verifies initialize, `tools/list`, and one read-only tool call. The automated test suite also covers category, payee, month/category budgeting, scoped account/category/payee/month transaction reads, and transaction write/delete tool calls.
 
 ## Documentation map
 

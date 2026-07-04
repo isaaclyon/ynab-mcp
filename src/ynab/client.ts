@@ -156,6 +156,13 @@ export class YnabClient {
     );
   }
 
+  listAccountTransactions(planId: string, accountId: string): Promise<unknown> {
+    return this.request(
+      "GET",
+      `/plans/${encodeURIComponent(planId)}/accounts/${encodeURIComponent(accountId)}/transactions`,
+    );
+  }
+
   listPayeeTransactions(planId: string, payeeId: string): Promise<unknown> {
     return this.request("GET", `/plans/${encodeURIComponent(planId)}/payees/${encodeURIComponent(payeeId)}/transactions`);
   }

@@ -39,6 +39,7 @@ describe("MCP smoke", () => {
     expect(tools.tools.map((tool) => tool.name)).toContain("ynab_create_transaction");
     expect(tools.tools.map((tool) => tool.name)).toContain("ynab_update_transaction");
     expect(tools.tools.map((tool) => tool.name)).toContain("ynab_delete_transaction");
+    expect(tools.tools.map((tool) => tool.name)).toContain("ynab_list_account_transactions");
     expect(tools.tools.map((tool) => tool.name)).toContain("ynab_list_category_transactions");
     expect(tools.tools.map((tool) => tool.name)).toContain("ynab_list_payee_transactions");
     expect(tools.tools.map((tool) => tool.name)).toContain("ynab_list_month_transactions");
@@ -80,6 +81,11 @@ describe("MCP smoke", () => {
       openWorldHint: true,
     });
     expect(tools.tools.find((tool) => tool.name === "ynab_list_category_transactions")?.annotations).toMatchObject({
+      readOnlyHint: true,
+      destructiveHint: false,
+      openWorldHint: true,
+    });
+    expect(tools.tools.find((tool) => tool.name === "ynab_list_account_transactions")?.annotations).toMatchObject({
       readOnlyHint: true,
       destructiveHint: false,
       openWorldHint: true,
@@ -289,6 +295,16 @@ describe("MCP smoke", () => {
           },
         });
       }
+      if (requestUrl.pathname === "/v1/plans/plan-1/accounts/account-1/transactions" && init?.method === "GET") {
+        return jsonResponse({
+          data: {
+            transactions: [
+              { id: "txn-account-1", account_id: "account-1", account_name: "Checking", amount: -1000, ignored_extra: true },
+              { id: "txn-account-2", account_id: "account-1", account_name: "Checking", amount: -2000 },
+            ],
+          },
+        });
+      }
       if (requestUrl.pathname === "/v1/plans/plan-1/payees/payee-1/transactions" && init?.method === "GET") {
         return jsonResponse({ data: { transactions: [{ id: "txn-payee-1", payee_id: "payee-1", payee_name: "Coffee Shop" }] } });
       }
@@ -310,6 +326,9 @@ describe("MCP smoke", () => {
     expect(JSON.parse(firstText(await client.callTool({ name: "ynab_list_category_transactions", arguments: { plan_id: "plan-1", category_id: "cat-1" } }, CallToolResultSchema))) as unknown).toMatchObject({
       transactions: [{ id: "txn-cat-1", category_id: "cat-1", payee_name: "Coffee Shop" }],
     });
+    expect(JSON.parse(firstText(await client.callTool({ name: "ynab_list_account_transactions", arguments: { plan_id: "plan-1", account_id: "account-1", limit: 1 } }, CallToolResultSchema))) as unknown).toEqual({
+      transactions: [{ id: "txn-account-1", amount: -1000, account_id: "account-1", account_name: "Checking" }],
+    });
     expect(JSON.parse(firstText(await client.callTool({ name: "ynab_list_payee_transactions", arguments: { plan_id: "plan-1", payee_id: "payee-1" } }, CallToolResultSchema))) as unknown).toMatchObject({
       transactions: [{ id: "txn-payee-1", payee_id: "payee-1" }],
     });
@@ -319,7 +338,7 @@ describe("MCP smoke", () => {
     expect(JSON.parse(firstText(await client.callTool({ name: "ynab_delete_transaction", arguments: { plan_id: "plan-1", transaction_id: "txn-cat-1" } }, CallToolResultSchema))) as unknown).toEqual({
       transaction: { id: "txn-cat-1", deleted: true },
     });
-    expect(fetchImpl.mock.calls.map(([, init]) => init?.method)).toEqual(["GET", "GET", "GET", "DELETE"]);
+    expect(fetchImpl.mock.calls.map(([, init]) => init?.method)).toEqual(["GET", "GET", "GET", "GET", "DELETE"]);
 
     await client.close();
   });
@@ -564,6 +583,18 @@ describe("MCP smoke", () => {
       CallToolResultSchema,
     );
     expect(payeeResult.isError).toBe(true);
+
+    const accountResult = await client.callTool(
+      { name: "ynab_list_account_transactions", arguments: { plan_id: "plan-1", account_id: "   " } },
+      CallToolResultSchema,
+    );
+    expect(accountResult.isError).toBe(true);
+
+    const limitResult = await client.callTool(
+      { name: "ynab_list_account_transactions", arguments: { plan_id: "plan-1", account_id: "account-1", limit: 101 } },
+      CallToolResultSchema,
+    );
+    expect(limitResult.isError).toBe(true);
 
     const monthResult = await client.callTool(
       { name: "ynab_list_month_transactions", arguments: { plan_id: "plan-1", month: "2026-13" } },

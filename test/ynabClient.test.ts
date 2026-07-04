@@ -186,18 +186,20 @@ describe("YnabClient", () => {
     });
 
     await client.listCategoryTransactions("plan-1", "cat-1");
+    await client.listAccountTransactions("plan-1", "account-1");
     await client.listPayeeTransactions("plan-1", "payee-1");
     await client.listMonthTransactions("plan-1", "2026-07");
     await client.deleteTransaction("plan-1", "txn-1");
 
     expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
       "https://api.ynab.test/v1/plans/plan-1/categories/cat-1/transactions",
+      "https://api.ynab.test/v1/plans/plan-1/accounts/account-1/transactions",
       "https://api.ynab.test/v1/plans/plan-1/payees/payee-1/transactions",
       "https://api.ynab.test/v1/plans/plan-1/months/2026-07-01/transactions",
       "https://api.ynab.test/v1/plans/plan-1/transactions/txn-1",
     ]);
-    expect(fetchImpl.mock.calls.map(([, init]) => init?.method)).toEqual(["GET", "GET", "GET", "DELETE"]);
-    expect(fetchImpl.mock.calls[3]?.[1]?.body).toBeUndefined();
+    expect(fetchImpl.mock.calls.map(([, init]) => init?.method)).toEqual(["GET", "GET", "GET", "GET", "DELETE"]);
+    expect(fetchImpl.mock.calls[4]?.[1]?.body).toBeUndefined();
   });
 
   it("builds month category budgeting requests", async () => {

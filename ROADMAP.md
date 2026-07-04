@@ -45,18 +45,15 @@ This file captures medium-term direction and sequencing. Temporary checklists li
    - Add `ynab_list_payees`, `ynab_create_payee`, `ynab_get_payee`, and `ynab_update_payee`.
    - Endpoints: `GET/POST /plans/{plan_id}/payees`, `GET/PATCH /plans/{plan_id}/payees/{payee_id}`.
    - Why second: improves transaction write workflows by letting tools use stable `payee_id` values.
-3. **Scoped transaction reads and transaction delete** — implemented for category/payee/month scopes and transaction delete
-   - Add category/payee/month transaction list tools plus `ynab_delete_transaction`.
-   - Endpoints: `GET /plans/{plan_id}/categories/{category_id}/transactions`, `GET /plans/{plan_id}/payees/{payee_id}/transactions`, `GET /plans/{plan_id}/months/{month}/transactions`, and `DELETE /plans/{plan_id}/transactions/{transaction_id}`.
+3. **Scoped transaction reads and transaction delete** — implemented for account/category/payee/month scopes and transaction delete
+   - Add account/category/payee/month transaction list tools plus `ynab_delete_transaction`.
+   - Endpoints: `GET /plans/{plan_id}/accounts/{account_id}/transactions`, `GET /plans/{plan_id}/categories/{category_id}/transactions`, `GET /plans/{plan_id}/payees/{payee_id}/transactions`, `GET /plans/{plan_id}/months/{month}/transactions`, and `DELETE /plans/{plan_id}/transactions/{transaction_id}`.
    - Safety note: transaction delete must be explicitly destructive in annotations and descriptions.
-4. **Account transaction reads**
-   - Add `ynab_list_account_transactions` if account-scoped transaction browsing is needed separately from search filters.
-   - Endpoint: `GET /plans/{plan_id}/accounts/{account_id}/transactions`.
-5. **Scheduled transaction tools**
+4. **Scheduled transaction tools**
    - Add list/create/get/update/delete tools for scheduled transactions.
    - Endpoints: `GET/POST /plans/{plan_id}/scheduled_transactions`, `GET/PUT/DELETE /plans/{plan_id}/scheduled_transactions/{scheduled_transaction_id}`.
    - Safety note: scheduled transaction payloads are transaction-like but should get separate schemas and tests.
-6. **Money movement group reads**
+5. **Money movement group reads**
    - Add `ynab_list_money_movement_groups` and `ynab_list_month_money_movement_groups`.
    - Endpoints: `GET /plans/{plan_id}/money_movement_groups`, `GET /plans/{plan_id}/months/{month}/money_movement_groups`.
    - Why later: useful for budget-movement history, but less central than budgeting, payee, transaction, and scheduled-transaction workflows.
