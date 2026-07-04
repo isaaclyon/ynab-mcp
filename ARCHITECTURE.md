@@ -69,6 +69,7 @@ YNAB API (`https://api.ynab.com/v1`)
 - Category/category-group writes cover create and update only because YNAB does not expose delete endpoints for those resources; payee writes cover create and update; month/category budgeting writes cover category budgeted amount updates; transaction writes cover single transaction create, update, and delete; scheduled transaction writes cover create, update, and delete with separate scheduled transaction schemas.
 - Every tool has MCP annotations for at least title, read-only/destructive behavior, and external-world access.
 - Tool results should be compact enough for Claude web limits and include IDs needed for follow-up calls.
+- Tool shaping validates key upstream response slices before compact projection, while the YNAB client boundary still treats external response bodies as `unknown`.
 - Expected YNAB API failures should be returned as structured MCP tool errors with safe status/code/message fields, not as opaque internal failures.
 - The project uses `plans`, not `budgets`, in new user-facing schemas and docs.
 - The YNAB client may cache successful read-only `GET` responses briefly, deduplicate in-flight reads, and clear cached reads after successful writes.

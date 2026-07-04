@@ -1,100 +1,132 @@
+import {
+  accountSchema,
+  accountsContainerSchema,
+  categoriesResponseSchema,
+  categoryGroupResponseSchema,
+  categoryResponseSchema,
+  monthCategoryResponseSchema,
+  monthResponseSchema,
+  monthsResponseSchema,
+  parseYnabResponse,
+  payeeResponseSchema,
+  payeesResponseSchema,
+  plansResponseSchema,
+  scheduledTransactionResponseSchema,
+  scheduledTransactionWriteResponseSchema,
+  scheduledTransactionsContainerSchema,
+  scheduledTransactionSchema,
+  transactionResponseSchema,
+  transactionWriteResponseSchema,
+  transactionsContainerSchema,
+  transactionSchema,
+} from "./ynabResponseSchemas.js";
+
 type JsonRecord = Record<string, unknown>;
 
 export function shapePlans(response: unknown): unknown {
-  const plans = getArray(response, ["data", "plans"]);
+  const parsed = parseYnabResponse(plansResponseSchema, response, "list plans");
   return {
-    plans: plans.map((plan) => pick(plan, ["id", "name", "last_modified_on", "currency_format"])),
+    plans: parsed.data.plans.map((plan) => pick(plan, ["id", "name", "last_modified_on", "currency_format"])),
   };
 }
 
 export function shapeAccounts(response: unknown, includeClosed: boolean): unknown {
-  const accounts = getArray(response, ["data", "accounts"])
-    .filter((account) => includeClosed || account.closed !== true)
+  const parsed = parseYnabResponse(accountsContainerSchema, response, "list accounts container");
+  const emittedAccounts = parsed.data.accounts.filter((account) => !isRecord(account) || includeClosed || account.closed !== true);
+  const accounts = parseYnabResponse(accountSchema.array(), emittedAccounts, "list accounts records")
     .map((account) => pick(account, ["id", "name", "type", "on_budget", "closed", "balance", "cleared_balance", "uncleared_balance", "deleted"]));
   return { accounts };
 }
 
 export function shapeCategory(response: unknown): unknown {
-  const category = getRecord(response, ["data", "category"]);
-  return category ? { category: shapeCategoryRecord(category) } : response;
+  const parsed = parseYnabResponse(categoryResponseSchema, response, "category");
+  return { category: shapeCategoryRecord(parsed.data.category) };
 }
 
 export function shapeCategoryGroup(response: unknown): unknown {
-  const group = getRecord(response, ["data", "category_group"]);
-  return group ? { category_group: shapeCategoryGroupRecord(group) } : response;
+  const parsed = parseYnabResponse(categoryGroupResponseSchema, response, "category group");
+  return { category_group: shapeCategoryGroupRecord(parsed.data.category_group) };
 }
 
 export function shapeCategories(response: unknown): unknown {
-  const groups = getArray(response, ["data", "category_groups"]);
+  const parsed = parseYnabResponse(categoriesResponseSchema, response, "list categories");
   return {
-    category_groups: groups.map((group) => ({
+    category_groups: parsed.data.category_groups.map((group) => ({
       ...shapeCategoryGroupRecord(group),
-      categories: getArray(group, ["categories"]).map(shapeCategoryRecord),
+      categories: group.categories.map(shapeCategoryRecord),
     })),
   };
 }
 
 export function shapePayees(response: unknown): unknown {
-  const payees = getArray(response, ["data", "payees"]);
-  return { payees: payees.map(shapePayeeRecord) };
+  const parsed = parseYnabResponse(payeesResponseSchema, response, "list payees");
+  return { payees: parsed.data.payees.map(shapePayeeRecord) };
 }
 
 export function shapePayee(response: unknown): unknown {
-  const payee = getRecord(response, ["data", "payee"]);
-  return payee ? { payee: shapePayeeRecord(payee) } : response;
+  const parsed = parseYnabResponse(payeeResponseSchema, response, "payee");
+  return { payee: shapePayeeRecord(parsed.data.payee) };
 }
 
 export function shapeMonth(response: unknown): unknown {
-  const month = getRecord(response, ["data", "month"]);
-  if (!month) {
-    return response;
-  }
+  const parsed = parseYnabResponse(monthResponseSchema, response, "month");
   return {
     month: {
-      ...shapeMonthSummaryRecord(month),
-      categories: getArray(month, ["categories"]).map(shapeMonthCategoryRecord),
+      ...shapeMonthSummaryRecord(parsed.data.month),
+      categories: parsed.data.month.categories.map(shapeMonthCategoryRecord),
     },
   };
 }
 
 export function shapeMonths(response: unknown): unknown {
-  const months = getArray(response, ["data", "months"]);
-  return { months: months.map(shapeMonthSummaryRecord) };
+  const parsed = parseYnabResponse(monthsResponseSchema, response, "list months");
+  return { months: parsed.data.months.map(shapeMonthSummaryRecord) };
 }
 
 export function shapeMonthCategory(response: unknown): unknown {
-  const category = getRecord(response, ["data", "category"]);
-  return category ? { category: shapeMonthCategoryRecord(category) } : response;
+  const parsed = parseYnabResponse(monthCategoryResponseSchema, response, "month category");
+  return { category: shapeMonthCategoryRecord(parsed.data.category) };
 }
 
 export function shapeTransactions(response: unknown, filters: TransactionFilters): unknown {
-  const transactions = getArray(response, ["data", "transactions"])
-    .filter((transaction) => matchesFilters(transaction, filters))
-    .slice(0, filters.limit)
+  const parsed = parseYnabResponse(transactionsContainerSchema, response, "list transactions container");
+  const emittedTransactions = parsed.data.transactions
+    .filter((transaction) => matchesTransactionFilters(transaction, filters))
+    .slice(0, filters.limit);
+  const transactions = parseYnabResponse(transactionSchema.array(), emittedTransactions, "list transactions records")
     .map(shapeTransactionRecord);
   return { transactions };
 }
 
 export function shapeTransaction(response: unknown): unknown {
-  const transaction = getRecord(response, ["data", "transaction"]);
-  return transaction ? { transaction: shapeTransactionRecord(transaction) } : response;
+  const parsed = parseYnabResponse(transactionResponseSchema, response, "transaction");
+  return { transaction: shapeTransactionRecord(parsed.data.transaction) };
 }
 
 export function shapeTransactionWrite(response: unknown): unknown {
-  const transaction = getRecord(response, ["data", "transaction"]);
-  return transaction ? { transaction: shapeTransactionRecord(transaction) } : response;
+  const parsed = parseYnabResponse(transactionWriteResponseSchema, response, "transaction write");
+  return { transaction: shapeTransactionRecord(parsed.data.transaction) };
 }
 
 export function shapeScheduledTransactions(response: unknown, limit: number): unknown {
-  const scheduledTransactions = getArray(response, ["data", "scheduled_transactions"])
-    .slice(0, limit)
-    .map(shapeScheduledTransactionRecord);
+  const parsed = parseYnabResponse(scheduledTransactionsContainerSchema, response, "list scheduled transactions container");
+  const emittedScheduledTransactions = parsed.data.scheduled_transactions.slice(0, limit);
+  const scheduledTransactions = parseYnabResponse(
+    scheduledTransactionSchema.array(),
+    emittedScheduledTransactions,
+    "list scheduled transactions records",
+  ).map(shapeScheduledTransactionRecord);
   return { scheduled_transactions: scheduledTransactions };
 }
 
 export function shapeScheduledTransaction(response: unknown): unknown {
-  const scheduledTransaction = getRecord(response, ["data", "scheduled_transaction"]);
-  return scheduledTransaction ? { scheduled_transaction: shapeScheduledTransactionRecord(scheduledTransaction) } : response;
+  const parsed = parseYnabResponse(scheduledTransactionResponseSchema, response, "scheduled transaction");
+  return { scheduled_transaction: shapeScheduledTransactionRecord(parsed.data.scheduled_transaction) };
+}
+
+export function shapeScheduledTransactionWrite(response: unknown): unknown {
+  const parsed = parseYnabResponse(scheduledTransactionWriteResponseSchema, response, "scheduled transaction write");
+  return { scheduled_transaction: shapeScheduledTransactionRecord(parsed.data.scheduled_transaction) };
 }
 
 export type TransactionFilters = {
@@ -159,8 +191,8 @@ function shapeTransactionRecord(transaction: JsonRecord): JsonRecord {
     "transfer_account_id",
     "deleted",
   ]);
-  const subtransactions = getArray(transaction, ["subtransactions"]);
-  return subtransactions.length > 0
+  const subtransactions = transaction.subtransactions;
+  return Array.isArray(subtransactions) && subtransactions.length > 0
     ? { ...shaped, subtransactions: subtransactions.map(shapeSubtransactionRecord) }
     : shaped;
 }
@@ -183,8 +215,8 @@ function shapeScheduledTransactionRecord(scheduledTransaction: JsonRecord): Json
     "transfer_account_id",
     "deleted",
   ]);
-  const subtransactions = getArray(scheduledTransaction, ["subtransactions"]);
-  return subtransactions.length > 0
+  const subtransactions = scheduledTransaction.subtransactions;
+  return Array.isArray(subtransactions) && subtransactions.length > 0
     ? { ...shaped, subtransactions: subtransactions.map(shapeSubtransactionRecord) }
     : shaped;
 }
@@ -204,6 +236,13 @@ function shapeSubtransactionRecord(subtransaction: JsonRecord): JsonRecord {
   ]);
 }
 
+function matchesTransactionFilters(transaction: unknown, filters: TransactionFilters): boolean {
+  if (!isRecord(transaction)) {
+    return !filters.accountId && !filters.categoryId && !filters.query;
+  }
+  return matchesFilters(transaction, filters);
+}
+
 function matchesFilters(transaction: JsonRecord, filters: TransactionFilters): boolean {
   if (filters.accountId && transaction.account_id !== filters.accountId) {
     return false;
@@ -219,20 +258,6 @@ function matchesFilters(transaction: JsonRecord, filters: TransactionFilters): b
     .join(" ")
     .toLowerCase();
   return haystack.includes(filters.query.toLowerCase());
-}
-
-function getArray(value: unknown, path: string[]): JsonRecord[] {
-  const target = getPath(value, path);
-  return Array.isArray(target) ? target.filter(isRecord) : [];
-}
-
-function getRecord(value: unknown, path: string[]): JsonRecord | undefined {
-  const target = getPath(value, path);
-  return isRecord(target) ? target : undefined;
-}
-
-function getPath(value: unknown, path: string[]): unknown {
-  return path.reduce<unknown>((current, key) => (isRecord(current) ? current[key] : undefined), value);
 }
 
 function pick(record: JsonRecord, keys: string[]): JsonRecord {

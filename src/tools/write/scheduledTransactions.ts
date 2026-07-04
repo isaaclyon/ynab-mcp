@@ -4,7 +4,7 @@ import type { YnabClient } from "../../ynab/client.js";
 import { createAnnotations, deleteAnnotations, updateAnnotations } from "../annotations.js";
 import { ynabResult } from "../result.js";
 import { accountId, categoryId, isoDate, planId, writePayeeId, writeScheduledTransactionId } from "../schemas.js";
-import { shapeScheduledTransaction } from "../shaping.js";
+import { shapeScheduledTransactionWrite } from "../shaping.js";
 import { compact, validatePayeeFields } from "./helpers.js";
 
 const nullableMemo = z.string().max(500).nullable().optional().describe("Transaction memo. Pass null to clear an existing memo.");
@@ -77,7 +77,7 @@ export function registerScheduledTransactionWriteTools(server: McpServer, ynab: 
           plan_id,
           { account_id, date, amount, frequency, ...compact({ payee_id, payee_name, category_id, memo, flag_color }) },
         ),
-        shapeScheduledTransaction,
+        shapeScheduledTransactionWrite,
       );
     },
   );
@@ -98,7 +98,7 @@ export function registerScheduledTransactionWriteTools(server: McpServer, ynab: 
       }
       return ynabResult(
         ynab.updateScheduledTransaction(plan_id, scheduled_transaction_id, scheduledTransaction),
-        shapeScheduledTransaction,
+        shapeScheduledTransactionWrite,
       );
     },
   );
@@ -112,6 +112,6 @@ export function registerScheduledTransactionWriteTools(server: McpServer, ynab: 
       annotations: { ...deleteAnnotations, title: "Delete YNAB scheduled transaction" },
     },
     ({ plan_id, scheduled_transaction_id }) =>
-      ynabResult(ynab.deleteScheduledTransaction(plan_id, scheduled_transaction_id), shapeScheduledTransaction),
+      ynabResult(ynab.deleteScheduledTransaction(plan_id, scheduled_transaction_id), shapeScheduledTransactionWrite),
   );
 }
