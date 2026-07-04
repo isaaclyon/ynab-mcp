@@ -1,7 +1,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { YnabClient } from "../ynab/client.js";
-import { jsonResult } from "./result.js";
+import { ynabResult } from "./result.js";
 import { readOnlyAnnotations } from "./annotations.js";
 import {
   shapeAccounts,
@@ -49,7 +49,7 @@ export function registerReadTools(server: McpServer, ynab: YnabClient): void {
       inputSchema: {},
       annotations: { ...readOnlyAnnotations, title: "List YNAB plans" },
     },
-    async () => jsonResult(shapePlans(await ynab.listPlans())),
+    () => ynabResult(ynab.listPlans(), shapePlans),
   );
 
   server.registerTool(
@@ -63,8 +63,8 @@ export function registerReadTools(server: McpServer, ynab: YnabClient): void {
       },
       annotations: { ...readOnlyAnnotations, title: "List YNAB accounts" },
     },
-    async ({ plan_id, include_closed }) =>
-      jsonResult(shapeAccounts(await ynab.listAccounts(plan_id), include_closed)),
+    ({ plan_id, include_closed }) =>
+      ynabResult(ynab.listAccounts(plan_id), (response) => shapeAccounts(response, include_closed)),
   );
 
   server.registerTool(
@@ -75,7 +75,7 @@ export function registerReadTools(server: McpServer, ynab: YnabClient): void {
       inputSchema: { plan_id: planId },
       annotations: { ...readOnlyAnnotations, title: "List YNAB categories" },
     },
-    async ({ plan_id }) => jsonResult(shapeCategories(await ynab.listCategories(plan_id))),
+    ({ plan_id }) => ynabResult(ynab.listCategories(plan_id), shapeCategories),
   );
 
   server.registerTool(
@@ -89,7 +89,7 @@ export function registerReadTools(server: McpServer, ynab: YnabClient): void {
       },
       annotations: { ...readOnlyAnnotations, title: "Get YNAB category" },
     },
-    async ({ plan_id, category_id }) => jsonResult(shapeCategory(await ynab.getCategory(plan_id, category_id))),
+    ({ plan_id, category_id }) => ynabResult(ynab.getCategory(plan_id, category_id), shapeCategory),
   );
 
   server.registerTool(
@@ -100,7 +100,7 @@ export function registerReadTools(server: McpServer, ynab: YnabClient): void {
       inputSchema: { plan_id: planId },
       annotations: { ...readOnlyAnnotations, title: "List YNAB payees" },
     },
-    async ({ plan_id }) => jsonResult(shapePayees(await ynab.listPayees(plan_id))),
+    ({ plan_id }) => ynabResult(ynab.listPayees(plan_id), shapePayees),
   );
 
   server.registerTool(
@@ -114,7 +114,7 @@ export function registerReadTools(server: McpServer, ynab: YnabClient): void {
       },
       annotations: { ...readOnlyAnnotations, title: "Get YNAB payee" },
     },
-    async ({ plan_id, payee_id }) => jsonResult(shapePayee(await ynab.getPayee(plan_id, payee_id))),
+    ({ plan_id, payee_id }) => ynabResult(ynab.getPayee(plan_id, payee_id), shapePayee),
   );
 
   server.registerTool(
@@ -125,7 +125,7 @@ export function registerReadTools(server: McpServer, ynab: YnabClient): void {
       inputSchema: { plan_id: planId },
       annotations: { ...readOnlyAnnotations, title: "List YNAB months" },
     },
-    async ({ plan_id }) => jsonResult(shapeMonths(await ynab.listMonths(plan_id))),
+    ({ plan_id }) => ynabResult(ynab.listMonths(plan_id), shapeMonths),
   );
 
   server.registerTool(
@@ -136,7 +136,7 @@ export function registerReadTools(server: McpServer, ynab: YnabClient): void {
       inputSchema: { plan_id: planId, month },
       annotations: { ...readOnlyAnnotations, title: "Get YNAB month" },
     },
-    async ({ plan_id, month: monthValue }) => jsonResult(shapeMonth(await ynab.getMonth(plan_id, monthValue))),
+    ({ plan_id, month: monthValue }) => ynabResult(ynab.getMonth(plan_id, monthValue), shapeMonth),
   );
 
   server.registerTool(
@@ -151,8 +151,8 @@ export function registerReadTools(server: McpServer, ynab: YnabClient): void {
       },
       annotations: { ...readOnlyAnnotations, title: "Get YNAB month category" },
     },
-    async ({ plan_id, month: monthValue, category_id }) =>
-      jsonResult(shapeMonthCategory(await ynab.getMonthCategory(plan_id, monthValue, category_id))),
+    ({ plan_id, month: monthValue, category_id }) =>
+      ynabResult(ynab.getMonthCategory(plan_id, monthValue, category_id), shapeMonthCategory),
   );
 
   server.registerTool(
@@ -178,7 +178,7 @@ export function registerReadTools(server: McpServer, ynab: YnabClient): void {
         ...(account_id ? { accountId: account_id } : {}),
         ...(category_id ? { categoryId: category_id } : {}),
       };
-      return jsonResult(shapeTransactions(await ynab.listTransactions(plan_id, since_date), filters));
+      return ynabResult(ynab.listTransactions(plan_id, since_date), (response) => shapeTransactions(response, filters));
     },
   );
 
@@ -190,8 +190,8 @@ export function registerReadTools(server: McpServer, ynab: YnabClient): void {
       inputSchema: { plan_id: planId, category_id: categoryId, limit: z.number().int().min(1).max(100).default(25) },
       annotations: { ...readOnlyAnnotations, title: "List YNAB category transactions" },
     },
-    async ({ plan_id, category_id, limit }) =>
-      jsonResult(shapeTransactions(await ynab.listCategoryTransactions(plan_id, category_id), { limit })),
+    ({ plan_id, category_id, limit }) =>
+      ynabResult(ynab.listCategoryTransactions(plan_id, category_id), (response) => shapeTransactions(response, { limit })),
   );
 
   server.registerTool(
@@ -202,8 +202,8 @@ export function registerReadTools(server: McpServer, ynab: YnabClient): void {
       inputSchema: { plan_id: planId, account_id: accountId, limit: z.number().int().min(1).max(100).default(25) },
       annotations: { ...readOnlyAnnotations, title: "List YNAB account transactions" },
     },
-    async ({ plan_id, account_id, limit }) =>
-      jsonResult(shapeTransactions(await ynab.listAccountTransactions(plan_id, account_id), { limit })),
+    ({ plan_id, account_id, limit }) =>
+      ynabResult(ynab.listAccountTransactions(plan_id, account_id), (response) => shapeTransactions(response, { limit })),
   );
 
   server.registerTool(
@@ -214,8 +214,8 @@ export function registerReadTools(server: McpServer, ynab: YnabClient): void {
       inputSchema: { plan_id: planId, payee_id: payeeId, limit: z.number().int().min(1).max(100).default(25) },
       annotations: { ...readOnlyAnnotations, title: "List YNAB payee transactions" },
     },
-    async ({ plan_id, payee_id, limit }) =>
-      jsonResult(shapeTransactions(await ynab.listPayeeTransactions(plan_id, payee_id), { limit })),
+    ({ plan_id, payee_id, limit }) =>
+      ynabResult(ynab.listPayeeTransactions(plan_id, payee_id), (response) => shapeTransactions(response, { limit })),
   );
 
   server.registerTool(
@@ -226,8 +226,8 @@ export function registerReadTools(server: McpServer, ynab: YnabClient): void {
       inputSchema: { plan_id: planId, month, limit: z.number().int().min(1).max(100).default(25) },
       annotations: { ...readOnlyAnnotations, title: "List YNAB month transactions" },
     },
-    async ({ plan_id, month: monthValue, limit }) =>
-      jsonResult(shapeTransactions(await ynab.listMonthTransactions(plan_id, monthValue), { limit })),
+    ({ plan_id, month: monthValue, limit }) =>
+      ynabResult(ynab.listMonthTransactions(plan_id, monthValue), (response) => shapeTransactions(response, { limit })),
   );
 
   server.registerTool(
@@ -238,7 +238,8 @@ export function registerReadTools(server: McpServer, ynab: YnabClient): void {
       inputSchema: { plan_id: planId, limit: z.number().int().min(1).max(100).default(25) },
       annotations: { ...readOnlyAnnotations, title: "List YNAB scheduled transactions" },
     },
-    async ({ plan_id, limit }) => jsonResult(shapeScheduledTransactions(await ynab.listScheduledTransactions(plan_id), limit)),
+    ({ plan_id, limit }) =>
+      ynabResult(ynab.listScheduledTransactions(plan_id), (response) => shapeScheduledTransactions(response, limit)),
   );
 
   server.registerTool(
@@ -249,8 +250,8 @@ export function registerReadTools(server: McpServer, ynab: YnabClient): void {
       inputSchema: { plan_id: planId, scheduled_transaction_id: scheduledTransactionId },
       annotations: { ...readOnlyAnnotations, title: "Get YNAB scheduled transaction" },
     },
-    async ({ plan_id, scheduled_transaction_id }) =>
-      jsonResult(shapeScheduledTransaction(await ynab.getScheduledTransaction(plan_id, scheduled_transaction_id))),
+    ({ plan_id, scheduled_transaction_id }) =>
+      ynabResult(ynab.getScheduledTransaction(plan_id, scheduled_transaction_id), shapeScheduledTransaction),
   );
 
   server.registerTool(
@@ -264,7 +265,7 @@ export function registerReadTools(server: McpServer, ynab: YnabClient): void {
       },
       annotations: { ...readOnlyAnnotations, title: "Get YNAB transaction" },
     },
-    async ({ plan_id, transaction_id }) =>
-      jsonResult(shapeTransaction(await ynab.getTransaction(plan_id, transaction_id))),
+    ({ plan_id, transaction_id }) =>
+      ynabResult(ynab.getTransaction(plan_id, transaction_id), shapeTransaction),
   );
 }

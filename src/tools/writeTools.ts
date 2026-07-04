@@ -2,7 +2,7 @@ import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { YnabClient } from "../ynab/client.js";
 import { createAnnotations, deleteAnnotations, updateAnnotations } from "./annotations.js";
-import { jsonResult } from "./result.js";
+import { ynabResult } from "./result.js";
 import { shapeCategory, shapeCategoryGroup, shapeMonthCategory, shapePayee, shapeScheduledTransaction, shapeTransactionWrite } from "./shaping.js";
 
 const planId = z.string().trim().min(1).describe("YNAB plan ID returned by ynab_list_plans.");
@@ -148,7 +148,7 @@ export function registerWriteTools(server: McpServer, ynab: YnabClient): void {
       inputSchema: { plan_id: planId, name: payeeNameValue },
       annotations: { ...createAnnotations, title: "Create YNAB payee" },
     },
-    async ({ plan_id, name }) => jsonResult(shapePayee(await ynab.createPayee(plan_id, { name }))),
+    ({ plan_id, name }) => ynabResult(ynab.createPayee(plan_id, { name }), shapePayee),
   );
 
   server.registerTool(
@@ -159,7 +159,7 @@ export function registerWriteTools(server: McpServer, ynab: YnabClient): void {
       inputSchema: { plan_id: planId, payee_id: payeeToolId, name: payeeNameValue },
       annotations: { ...updateAnnotations, title: "Update YNAB payee" },
     },
-    async ({ plan_id, payee_id, name }) => jsonResult(shapePayee(await ynab.updatePayee(plan_id, payee_id, { name }))),
+    ({ plan_id, payee_id, name }) => ynabResult(ynab.updatePayee(plan_id, payee_id, { name }), shapePayee),
   );
 
   server.registerTool(
@@ -170,7 +170,7 @@ export function registerWriteTools(server: McpServer, ynab: YnabClient): void {
       inputSchema: { plan_id: planId, name: groupName },
       annotations: { ...createAnnotations, title: "Create YNAB category group" },
     },
-    async ({ plan_id, name }) => jsonResult(shapeCategoryGroup(await ynab.createCategoryGroup(plan_id, { name }))),
+    ({ plan_id, name }) => ynabResult(ynab.createCategoryGroup(plan_id, { name }), shapeCategoryGroup),
   );
 
   server.registerTool(
@@ -181,8 +181,8 @@ export function registerWriteTools(server: McpServer, ynab: YnabClient): void {
       inputSchema: { plan_id: planId, category_group_id: categoryGroupId, name: groupName },
       annotations: { ...updateAnnotations, title: "Update YNAB category group" },
     },
-    async ({ plan_id, category_group_id, name }) =>
-      jsonResult(shapeCategoryGroup(await ynab.updateCategoryGroup(plan_id, category_group_id, { name }))),
+    ({ plan_id, category_group_id, name }) =>
+      ynabResult(ynab.updateCategoryGroup(plan_id, category_group_id, { name }), shapeCategoryGroup),
   );
 
   server.registerTool(
@@ -203,17 +203,16 @@ export function registerWriteTools(server: McpServer, ynab: YnabClient): void {
     },
     async ({ plan_id, category_group_id, name, note, goal_target, goal_target_date, goal_needs_whole_amount }) => {
       validateGoalFields(goal_needs_whole_amount, goal_target, goal_target_date);
-      return jsonResult(
-        shapeCategory(
-          await ynab.createCategory(
-            plan_id,
-            {
-              category_group_id,
-              name,
-              ...compact({ note, goal_target, goal_target_date, goal_needs_whole_amount }),
-            },
-          ),
+      return ynabResult(
+        ynab.createCategory(
+          plan_id,
+          {
+            category_group_id,
+            name,
+            ...compact({ note, goal_target, goal_target_date, goal_needs_whole_amount }),
+          },
         ),
+        shapeCategory,
       );
     },
   );
@@ -233,7 +232,7 @@ export function registerWriteTools(server: McpServer, ynab: YnabClient): void {
       if (Object.keys(category).length === 0) {
         throw new Error("At least one category field must be provided to update.");
       }
-      return jsonResult(shapeCategory(await ynab.updateCategory(plan_id, category_id, category)));
+      return ynabResult(ynab.updateCategory(plan_id, category_id, category), shapeCategory);
     },
   );
 
@@ -245,8 +244,8 @@ export function registerWriteTools(server: McpServer, ynab: YnabClient): void {
       inputSchema: { plan_id: planId, month, category_id: categoryId, budgeted },
       annotations: { ...updateAnnotations, title: "Update YNAB month category" },
     },
-    async ({ plan_id, month: monthValue, category_id, budgeted: budgetedValue }) =>
-      jsonResult(shapeMonthCategory(await ynab.updateMonthCategory(plan_id, monthValue, category_id, { budgeted: budgetedValue }))),
+    ({ plan_id, month: monthValue, category_id, budgeted: budgetedValue }) =>
+      ynabResult(ynab.updateMonthCategory(plan_id, monthValue, category_id, { budgeted: budgetedValue }), shapeMonthCategory),
   );
 
   server.registerTool(
@@ -260,18 +259,17 @@ export function registerWriteTools(server: McpServer, ynab: YnabClient): void {
     },
     async ({ plan_id, account_id, date, amount, payee_id, payee_name, category_id, memo, cleared, approved, flag_color, import_id }) => {
       validatePayeeFields(payee_id, payee_name);
-      return jsonResult(
-        shapeTransactionWrite(
-          await ynab.createTransaction(
-            plan_id,
-            {
-              account_id,
-              date,
-              amount,
-              ...compact({ payee_id, payee_name, category_id, memo, cleared, approved, flag_color, import_id }),
-            },
-          ),
+      return ynabResult(
+        ynab.createTransaction(
+          plan_id,
+          {
+            account_id,
+            date,
+            amount,
+            ...compact({ payee_id, payee_name, category_id, memo, cleared, approved, flag_color, import_id }),
+          },
         ),
+        shapeTransactionWrite,
       );
     },
   );
@@ -290,7 +288,7 @@ export function registerWriteTools(server: McpServer, ynab: YnabClient): void {
       if (Object.keys(transaction).length === 0) {
         throw new Error("At least one transaction field must be provided to update.");
       }
-      return jsonResult(shapeTransactionWrite(await ynab.updateTransaction(plan_id, transaction_id, transaction)));
+      return ynabResult(ynab.updateTransaction(plan_id, transaction_id, transaction), shapeTransactionWrite);
     },
   );
 
@@ -302,8 +300,8 @@ export function registerWriteTools(server: McpServer, ynab: YnabClient): void {
       inputSchema: { plan_id: planId, transaction_id: transactionId },
       annotations: { ...deleteAnnotations, title: "Delete YNAB transaction" },
     },
-    async ({ plan_id, transaction_id }) =>
-      jsonResult(shapeTransactionWrite(await ynab.deleteTransaction(plan_id, transaction_id))),
+    ({ plan_id, transaction_id }) =>
+      ynabResult(ynab.deleteTransaction(plan_id, transaction_id), shapeTransactionWrite),
   );
 
   server.registerTool(
@@ -317,13 +315,12 @@ export function registerWriteTools(server: McpServer, ynab: YnabClient): void {
     },
     async ({ plan_id, account_id, date, amount, frequency, payee_id, payee_name, category_id, memo, flag_color }) => {
       validatePayeeFields(payee_id, payee_name);
-      return jsonResult(
-        shapeScheduledTransaction(
-          await ynab.createScheduledTransaction(
-            plan_id,
-            { account_id, date, amount, frequency, ...compact({ payee_id, payee_name, category_id, memo, flag_color }) },
-          ),
+      return ynabResult(
+        ynab.createScheduledTransaction(
+          plan_id,
+          { account_id, date, amount, frequency, ...compact({ payee_id, payee_name, category_id, memo, flag_color }) },
         ),
+        shapeScheduledTransaction,
       );
     },
   );
@@ -342,8 +339,9 @@ export function registerWriteTools(server: McpServer, ynab: YnabClient): void {
       if (Object.keys(scheduledTransaction).length === 0) {
         throw new Error("At least one scheduled transaction field must be provided to update.");
       }
-      return jsonResult(
-        shapeScheduledTransaction(await ynab.updateScheduledTransaction(plan_id, scheduled_transaction_id, scheduledTransaction)),
+      return ynabResult(
+        ynab.updateScheduledTransaction(plan_id, scheduled_transaction_id, scheduledTransaction),
+        shapeScheduledTransaction,
       );
     },
   );
@@ -356,8 +354,8 @@ export function registerWriteTools(server: McpServer, ynab: YnabClient): void {
       inputSchema: { plan_id: planId, scheduled_transaction_id: scheduledTransactionId },
       annotations: { ...deleteAnnotations, title: "Delete YNAB scheduled transaction" },
     },
-    async ({ plan_id, scheduled_transaction_id }) =>
-      jsonResult(shapeScheduledTransaction(await ynab.deleteScheduledTransaction(plan_id, scheduled_transaction_id))),
+    ({ plan_id, scheduled_transaction_id }) =>
+      ynabResult(ynab.deleteScheduledTransaction(plan_id, scheduled_transaction_id), shapeScheduledTransaction),
   );
 }
 

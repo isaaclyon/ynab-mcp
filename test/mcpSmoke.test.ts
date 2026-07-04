@@ -641,6 +641,120 @@ describe("MCP smoke", () => {
     await client.close();
   });
 
+  it("returns structured safe YNAB read tool errors through Streamable HTTP", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      jsonResponse(
+        {
+          error: {
+            id: "404",
+            name: "not_found",
+            detail: "No category found for cat-missing. Authorization: Bearer ynab-secret-token code=oauth-code",
+          },
+        },
+        404,
+      ),
+    );
+    const app = createApp(testConfig({ devAuthBypass: true }), { fetchImpl });
+    const url = await listen(app);
+
+    const transport = new StreamableHTTPClientTransport(new URL("/mcp", url));
+    const client = new Client({ name: "read-error-smoke-test", version: "0.1.0" });
+    await client.connect(transport);
+
+    const result = await client.callTool(
+      { name: "ynab_get_category", arguments: { plan_id: "plan-1", category_id: "cat-missing" } },
+      CallToolResultSchema,
+    );
+    const payload = firstJson(result);
+
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toEqual(payload);
+    expect(payload).toMatchObject({
+      error: {
+        source: "ynab",
+        code: "ynab_not_found",
+        status: 404,
+        upstream_error_id: "404",
+        upstream_error_name: "not_found",
+      },
+    });
+    expect(JSON.stringify(payload)).toContain("cat-missing");
+    expect(JSON.stringify(payload)).not.toContain("ynab-secret-token");
+    expect(JSON.stringify(payload)).not.toContain("oauth-code");
+
+    await client.close();
+  });
+
+  it("returns structured safe YNAB write tool errors through Streamable HTTP", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      jsonResponse(
+        {
+          error: {
+            id: "400",
+            name: "bad_request",
+            detail: "category_group_id is invalid. access_token=write-secret-token",
+          },
+        },
+        400,
+      ),
+    );
+    const app = createApp(testConfig({ devAuthBypass: true }), { fetchImpl });
+    const url = await listen(app);
+
+    const transport = new StreamableHTTPClientTransport(new URL("/mcp", url));
+    const client = new Client({ name: "write-error-smoke-test", version: "0.1.0" });
+    await client.connect(transport);
+
+    const result = await client.callTool(
+      { name: "ynab_create_category", arguments: { plan_id: "plan-1", category_group_id: "bad-group", name: "Coffee" } },
+      CallToolResultSchema,
+    );
+    const payload = firstJson(result);
+
+    expect(result.isError).toBe(true);
+    expect(payload).toMatchObject({
+      error: {
+        source: "ynab",
+        code: "ynab_bad_request",
+        status: 400,
+        detail: expect.stringContaining("category_group_id is invalid"),
+      },
+    });
+    expect(JSON.stringify(payload)).not.toContain("write-secret-token");
+    expect(fetchImpl).toHaveBeenCalledOnce();
+
+    await client.close();
+  });
+
+  it("propagates YNAB retry-after guidance in structured tool errors", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      new Response(JSON.stringify({ error: { id: "429", name: "rate_limited", detail: "Slow down" } }), {
+        status: 429,
+        headers: { "content-type": "application/json", "retry-after": "30" },
+      }),
+    );
+    const app = createApp(testConfig({ devAuthBypass: true }), { fetchImpl });
+    const url = await listen(app);
+
+    const transport = new StreamableHTTPClientTransport(new URL("/mcp", url));
+    const client = new Client({ name: "rate-limit-error-smoke-test", version: "0.1.0" });
+    await client.connect(transport);
+
+    const result = await client.callTool({ name: "ynab_list_plans", arguments: {} }, CallToolResultSchema);
+
+    expect(result.isError).toBe(true);
+    expect(firstJson(result)).toMatchObject({
+      error: {
+        source: "ynab",
+        code: "ynab_rate_limited",
+        status: 429,
+        retry_after_seconds: 30,
+      },
+    });
+
+    await client.close();
+  });
+
   it("rejects empty category updates before calling YNAB", async () => {
     const fetchImpl = vi.fn<typeof fetch>();
     const app = createApp(testConfig({ devAuthBypass: true }), { fetchImpl });
@@ -860,4 +974,8 @@ function firstText(result: unknown): string {
     throw new Error("Expected text tool result");
   }
   return first.text;
+}
+
+function firstJson(result: unknown): unknown {
+  return JSON.parse(firstText(result)) as unknown;
 }

@@ -63,6 +63,45 @@ describe("YnabClient", () => {
     } satisfies Partial<YnabApiError>);
   });
 
+  it("captures retry-after seconds for upstream rate limits", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      jsonResponse({ error: { detail: "slow down" } }, { status: 429, headers: { "retry-after": "45" } }),
+    );
+    const client = new YnabClient({
+      baseUrl: new URL("https://api.ynab.test/v1"),
+      accessToken: "secret-token",
+      fetchImpl,
+    });
+
+    await expect(client.listPlans()).rejects.toMatchObject({
+      name: "YnabApiError",
+      status: 429,
+      retryAfterSeconds: 45,
+    } satisfies Partial<YnabApiError>);
+  });
+
+  it("captures retry-after HTTP dates for upstream rate limits", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-03T00:01:00.000Z"));
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      jsonResponse(
+        { error: { detail: "slow down" } },
+        { status: 429, headers: { "retry-after": new Date("2026-07-03T00:01:30.000Z").toUTCString() } },
+      ),
+    );
+    const client = new YnabClient({
+      baseUrl: new URL("https://api.ynab.test/v1"),
+      accessToken: "secret-token",
+      fetchImpl,
+    });
+
+    await expect(client.listPlans()).rejects.toMatchObject({
+      name: "YnabApiError",
+      status: 429,
+      retryAfterSeconds: 30,
+    } satisfies Partial<YnabApiError>);
+  });
+
   it("caches repeated GET requests within the read-through cache TTL", async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ data: { accounts: [{ id: "account-1" }] } }));
     const client = new YnabClient({

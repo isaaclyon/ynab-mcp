@@ -41,9 +41,10 @@ This file captures medium-term direction and sequencing. Temporary checklists li
    - Add a small cache at the YNAB client boundary for safe `GET` requests, especially repeated plan/category/payee/month/transaction reads.
    - Add YNAB delta request support where the API exposes `server_knowledge` or equivalent incremental sync fields; current implementation is conservative and uses account/category/payee deltas as freshness checks, full-refreshing when a delta contains changes.
    - Why first: reduces upstream calls, improves Claude response latency, and localizes performance behavior behind the YNAB client seam.
-2. **Structured MCP tool errors**
+2. **Structured MCP tool errors** — implemented for YNAB status shaping and safe upstream detail redaction
    - Translate YNAB client failures into safe, useful MCP tool errors instead of generic internal failures.
    - Preserve the invariant that YNAB tokens, owner passphrases, OAuth codes, and bearer tokens are never logged or returned.
+   - Current handling covers bad requests/validation (`400`), unauthorized credentials (`401`), forbidden resources (`403`), missing IDs (`404`), conflicts (`409`), rate limits (`429`), and upstream `5xx` failures.
    - Why second: helps Claude recover from bad IDs, validation issues, upstream authorization failures, and rate limits.
 3. **Concept-focused tool module split**
    - Split large read/write tool modules by YNAB concept, such as plans, accounts, categories, payees, months, transactions, and scheduled transactions.

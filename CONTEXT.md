@@ -31,6 +31,9 @@ _Avoid_: treating cached reads as durable storage or as a substitute for YNAB as
 **Delta request**: A YNAB incremental-sync request that sends `last_knowledge_of_server` after a prior response returned `server_knowledge`. The YNAB client boundary uses delta requests conservatively for account, category, and payee list reads: no-change deltas extend the read-through cache, while changed deltas trigger a full refresh to preserve YNAB's output ordering.
 _Avoid_: exposing `server_knowledge` as normal tool input; it is an internal YNAB client concern.
 
+**Structured MCP tool error**: A tool-level MCP response with `isError: true` and a compact sanitized JSON payload for expected YNAB failures, including status, project error code, safe message, and safe upstream detail when available.
+_Avoid_: turning expected upstream YNAB statuses into opaque internal failures or returning/logging YNAB tokens, owner passphrases, OAuth codes, or bearer tokens in error text.
+
 **Connector auth**: Authentication between Claude and this MCP server. It is separate from the YNAB credential. It exists to prevent arbitrary internet clients from using the owner's server-side YNAB credential.
 
 **Private MCP OAuth**: The personal connector-auth mechanism for this server: an MCP-compatible OAuth authorization-code flow with PKCE, gated by an owner-controlled passphrase, issuing bearer tokens for Claude to call this MCP server.

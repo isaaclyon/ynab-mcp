@@ -96,6 +96,7 @@ export class YnabApiError extends Error {
     message: string,
     readonly status: number,
     readonly body: unknown,
+    readonly retryAfterSeconds?: number,
   ) {
     super(message);
     this.name = "YnabApiError";
@@ -391,7 +392,12 @@ export class YnabClient {
 
     const responseBody = await readJsonBody(response);
     if (!response.ok) {
-      throw new YnabApiError(`YNAB API request failed with status ${response.status}`, response.status, responseBody);
+      throw new YnabApiError(
+        `YNAB API request failed with status ${response.status}`,
+        response.status,
+        responseBody,
+        retryAfterSeconds(response.headers.get("retry-after")),
+      );
     }
     return responseBody;
   }
@@ -468,4 +474,19 @@ async function readJsonBody(response: Response): Promise<unknown> {
   } catch {
     return text;
   }
+}
+
+function retryAfterSeconds(value: string | null): number | undefined {
+  if (!value) {
+    return undefined;
+  }
+  const seconds = Number(value);
+  if (Number.isFinite(seconds) && seconds >= 0) {
+    return seconds;
+  }
+  const dateMs = Date.parse(value);
+  if (!Number.isFinite(dateMs)) {
+    return undefined;
+  }
+  return Math.max(0, Math.ceil((dateMs - Date.now()) / 1_000));
 }

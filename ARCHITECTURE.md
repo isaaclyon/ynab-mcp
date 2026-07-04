@@ -24,7 +24,7 @@ YNAB API (`https://api.ynab.com/v1`)
 
 ### MCP server
 
-- Responsibility: Register YNAB-focused MCP tools, enforce connector auth, call the YNAB client, and return compact structured JSON text results.
+- Responsibility: Register YNAB-focused MCP tools, enforce connector auth, call the YNAB client, and return compact structured JSON text results and safe structured tool errors.
 - Important boundary: Tool handlers call the internal YNAB client rather than constructing ad hoc upstream requests.
 - What it must not own: user-facing financial advice, multi-tenant account management, or undocumented YNAB behavior.
 
@@ -54,6 +54,7 @@ YNAB API (`https://api.ynab.com/v1`)
 - Read tools must not call write endpoints.
 - Write tools must not be exposed through a generic read/write executor.
 - Cross-cutting concerns enter through configuration, auth middleware, and shared result/error helpers.
+- The shared tool result seam converts `YnabApiError` into sanitized MCP tool errors; non-YNAB programming or validation errors still use the MCP SDK's normal tool-error path.
 - Read-through cache and delta request behavior live behind the YNAB client boundary; tool modules receive normal shaped data and do not manage `server_knowledge`.
 
 ## Stable invariants
@@ -68,6 +69,7 @@ YNAB API (`https://api.ynab.com/v1`)
 - Category/category-group writes cover create and update only because YNAB does not expose delete endpoints for those resources; payee writes cover create and update; month/category budgeting writes cover category budgeted amount updates; transaction writes cover single transaction create, update, and delete; scheduled transaction writes cover create, update, and delete with separate scheduled transaction schemas.
 - Every tool has MCP annotations for at least title, read-only/destructive behavior, and external-world access.
 - Tool results should be compact enough for Claude web limits and include IDs needed for follow-up calls.
+- Expected YNAB API failures should be returned as structured MCP tool errors with safe status/code/message fields, not as opaque internal failures.
 - The project uses `plans`, not `budgets`, in new user-facing schemas and docs.
 - The YNAB client may cache successful read-only `GET` responses briefly, deduplicate in-flight reads, and clear cached reads after successful writes.
 - YNAB delta request `server_knowledge` is internal client state and is not exposed as normal MCP tool input.
