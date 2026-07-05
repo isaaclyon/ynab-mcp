@@ -175,12 +175,14 @@ describe("YnabClient", () => {
   it.each(["", " ", "\t", "eventually", "-1"])(
     "omits retry-after guidance for unusable upstream value %j",
     async (retryAfter) => {
-      const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
-        jsonResponse(
-          { error: { detail: "slow down" } },
-          { status: 429, headers: { "retry-after": retryAfter } },
-        ),
-      );
+      const fetchImpl = vi
+        .fn<typeof fetch>()
+        .mockResolvedValue(
+          jsonResponse(
+            { error: { detail: "slow down" } },
+            { status: 429, headers: { "retry-after": retryAfter } },
+          ),
+        );
       const client = new YnabClient({
         baseUrl: new URL("https://api.ynab.test/v1"),
         accessToken: "secret-token",
@@ -594,7 +596,7 @@ describe("YnabClient", () => {
   });
 
   it("does not cache an in-flight read that resolves after a write invalidates the cache", async () => {
-    let resolveStaleRead: (response: Response) => void = () => {};
+    let resolveStaleRead!: (response: Response) => void;
     const staleRead = new Promise<Response>((resolve) => {
       resolveStaleRead = resolve;
     });
@@ -615,7 +617,9 @@ describe("YnabClient", () => {
     });
 
     const firstRead = client.listPayees(planId("plan-1"));
-    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
+    await vi.waitFor(() => {
+      expect(fetchImpl).toHaveBeenCalledTimes(1);
+    });
     await client.createPayee(planId("plan-1"), { name: "New Coffee" });
     resolveStaleRead(jsonResponse({ data: { payees: [{ id: "payee-1", name: "Old Coffee" }] } }));
 
