@@ -11,7 +11,8 @@ export function registerAccountReadTools(server: McpServer, ynab: YnabClient): v
     "ynab_list_accounts",
     {
       title: "List YNAB accounts",
-      description: "List accounts for a YNAB plan, including IDs and balances needed for follow-up questions.",
+      description:
+        "List accounts for a YNAB plan, including IDs and balances needed for follow-up questions.",
       inputSchema: {
         plan_id: planId,
         include_closed: z.boolean().default(false).describe("Whether to include closed accounts."),

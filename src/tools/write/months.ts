@@ -22,7 +22,12 @@ export function registerMonthWriteTools(server: McpServer, ynab: YnabClient): vo
     (args) => {
       const command = parseUpdateMonthCategoryCommand(args);
       return ynabResult(
-        ynab.updateMonthCategory(command.planId, command.month, command.categoryId, command.category),
+        ynab.updateMonthCategory(
+          command.planId,
+          command.month,
+          command.categoryId,
+          command.category,
+        ),
         shapeMonthCategory,
       );
     },

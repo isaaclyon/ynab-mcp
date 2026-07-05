@@ -2,6 +2,7 @@ import { createServer } from "node:http";
 import { Client } from "@modelcontextprotocol/sdk/client/index.js";
 import { StreamableHTTPClientTransport } from "@modelcontextprotocol/sdk/client/streamableHttp.js";
 import { CallToolResultSchema } from "@modelcontextprotocol/sdk/types.js";
+import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import { createApp } from "../src/http/app.js";
 import type { AppConfig } from "../src/config.js";
 
@@ -31,23 +32,43 @@ try {
   const baseUrl = await listen(server);
   const client = new Client({ name: "ynab-mcp-smoke", version: "0.1.0" });
   const transport = new StreamableHTTPClientTransport(new URL("/mcp", baseUrl));
-  await client.connect(transport);
+  await connectClient(client, transport);
 
   const tools = await client.listTools();
   if (!tools.tools.some((tool) => tool.name === "ynab_list_plans")) {
     throw new Error("tools/list did not include ynab_list_plans");
   }
 
-  const result = await client.callTool({ name: "ynab_list_plans", arguments: {} }, CallToolResultSchema);
+  const result = await client.callTool(
+    { name: "ynab_list_plans", arguments: {} },
+    CallToolResultSchema,
+  );
   const text = firstText(result);
   if (!text.includes("smoke-plan")) {
     throw new Error("ynab_list_plans smoke call did not return mocked plan");
   }
 
   await client.close();
-  console.log("Smoke check passed: initialize, tools/list, and ynab_list_plans tool call succeeded.");
+  console.log(
+    "Smoke check passed: initialize, tools/list, and ynab_list_plans tool call succeeded.",
+  );
 } finally {
-  await new Promise<void>((resolve, reject) => server.close((error) => (error ? reject(error) : resolve())));
+  await new Promise<void>((resolve, reject) =>
+    server.close((error) => {
+      if (error) {
+        reject(error);
+        return;
+      }
+      resolve();
+    }),
+  );
+}
+
+async function connectClient(
+  client: Client,
+  transport: StreamableHTTPClientTransport,
+): Promise<void> {
+  await client.connect(transport as Transport);
 }
 
 function listen(httpServer: typeof server): Promise<URL> {

@@ -6,7 +6,6 @@ import {
   isoDateSchema,
   milliunitsSchema,
   monthSchema,
-  payeeIdSchema,
   planIdSchema,
   scheduledTransactionIdSchema,
   transactionIdSchema,
@@ -36,7 +35,10 @@ export type CategoryInput = {
   goal_needs_whole_amount?: boolean | null;
 };
 
-export type CreateCategoryInput = CategoryInput & { name: string; category_group_id: CategoryGroupId };
+export type CreateCategoryInput = CategoryInput & {
+  name: string;
+  category_group_id: CategoryGroupId;
+};
 
 export type CreateTransactionInput = {
   account_id: AccountId;
@@ -93,23 +95,50 @@ export type ScheduledTransactionFrequency =
   | "yearly"
   | "everyOtherYear";
 
+type Compact<T extends Record<string, unknown>> = Partial<{
+  [Key in keyof T]: Exclude<T[Key], undefined>;
+}>;
+
 export type CreatePayeeCommand = { planId: PlanId; payee: PayeeInput };
 export type UpdatePayeeCommand = { planId: PlanId; payeeId: PayeeId; payee: PayeeInput };
 export type CreateCategoryGroupCommand = { planId: PlanId; categoryGroup: CategoryGroupInput };
-export type UpdateCategoryGroupCommand = { planId: PlanId; categoryGroupId: CategoryGroupId; categoryGroup: CategoryGroupInput };
+export type UpdateCategoryGroupCommand = {
+  planId: PlanId;
+  categoryGroupId: CategoryGroupId;
+  categoryGroup: CategoryGroupInput;
+};
 export type CreateCategoryCommand = { planId: PlanId; category: CreateCategoryInput };
-export type UpdateCategoryCommand = { planId: PlanId; categoryId: CategoryId; category: CategoryInput };
-export type UpdateMonthCategoryCommand = { planId: PlanId; month: Month; categoryId: CategoryId; category: MonthCategoryInput };
+export type UpdateCategoryCommand = {
+  planId: PlanId;
+  categoryId: CategoryId;
+  category: CategoryInput;
+};
+export type UpdateMonthCategoryCommand = {
+  planId: PlanId;
+  month: Month;
+  categoryId: CategoryId;
+  category: MonthCategoryInput;
+};
 export type CreateTransactionCommand = { planId: PlanId; transaction: CreateTransactionInput };
-export type UpdateTransactionCommand = { planId: PlanId; transactionId: TransactionId; transaction: UpdateTransactionInput };
+export type UpdateTransactionCommand = {
+  planId: PlanId;
+  transactionId: TransactionId;
+  transaction: UpdateTransactionInput;
+};
 export type DeleteTransactionCommand = { planId: PlanId; transactionId: TransactionId };
-export type CreateScheduledTransactionCommand = { planId: PlanId; scheduledTransaction: ScheduledTransactionInput };
+export type CreateScheduledTransactionCommand = {
+  planId: PlanId;
+  scheduledTransaction: ScheduledTransactionInput;
+};
 export type UpdateScheduledTransactionCommand = {
   planId: PlanId;
   scheduledTransactionId: ScheduledTransactionId;
   scheduledTransaction: UpdateScheduledTransactionInput;
 };
-export type DeleteScheduledTransactionCommand = { planId: PlanId; scheduledTransactionId: ScheduledTransactionId };
+export type DeleteScheduledTransactionCommand = {
+  planId: PlanId;
+  scheduledTransactionId: ScheduledTransactionId;
+};
 
 const categoryNameSchema = z.string().min(1).max(50);
 const categoryGroupNameSchema = z.string().min(1).max(50);
@@ -136,8 +165,15 @@ const scheduledTransactionFrequencySchema = z.enum([
 ]);
 
 const createPayeeCommandSchema = z.object({ plan_id: planIdSchema, name: payeeNameSchema });
-const updatePayeeCommandSchema = z.object({ plan_id: planIdSchema, payee_id: untrimmedPayeeIdSchema, name: payeeNameSchema });
-const createCategoryGroupCommandSchema = z.object({ plan_id: planIdSchema, name: categoryGroupNameSchema });
+const updatePayeeCommandSchema = z.object({
+  plan_id: planIdSchema,
+  payee_id: untrimmedPayeeIdSchema,
+  name: payeeNameSchema,
+});
+const createCategoryGroupCommandSchema = z.object({
+  plan_id: planIdSchema,
+  name: categoryGroupNameSchema,
+});
 const updateCategoryGroupCommandSchema = z.object({
   plan_id: planIdSchema,
   category_group_id: categoryGroupIdSchema,
@@ -197,7 +233,10 @@ const updateTransactionCommandSchema = z.object({
   approved: z.boolean().optional(),
   flag_color: transactionFlagColorSchema.nullable().optional(),
 });
-const deleteTransactionCommandSchema = z.object({ plan_id: planIdSchema, transaction_id: transactionIdSchema });
+const deleteTransactionCommandSchema = z.object({
+  plan_id: planIdSchema,
+  transaction_id: transactionIdSchema,
+});
 
 const createScheduledTransactionCommandSchema = z.object({
   plan_id: planIdSchema,
@@ -246,7 +285,11 @@ export function parseCreateCategoryGroupCommand(value: unknown): CreateCategoryG
 
 export function parseUpdateCategoryGroupCommand(value: unknown): UpdateCategoryGroupCommand {
   const parsed = updateCategoryGroupCommandSchema.parse(value);
-  return { planId: parsed.plan_id, categoryGroupId: parsed.category_group_id, categoryGroup: { name: parsed.name } };
+  return {
+    planId: parsed.plan_id,
+    categoryGroupId: parsed.category_group_id,
+    categoryGroup: { name: parsed.name },
+  };
 }
 
 export function parseCreateCategoryCommand(value: unknown): CreateCategoryCommand {
@@ -284,7 +327,12 @@ export function parseUpdateCategoryCommand(value: unknown): UpdateCategoryComman
 
 export function parseUpdateMonthCategoryCommand(value: unknown): UpdateMonthCategoryCommand {
   const parsed = updateMonthCategoryCommandSchema.parse(value);
-  return { planId: parsed.plan_id, month: parsed.month, categoryId: parsed.category_id, category: { budgeted: parsed.budgeted } };
+  return {
+    planId: parsed.plan_id,
+    month: parsed.month,
+    categoryId: parsed.category_id,
+    category: { budgeted: parsed.budgeted },
+  };
 }
 
 export function parseCreateTransactionCommand(value: unknown): CreateTransactionCommand {
@@ -334,7 +382,9 @@ export function parseDeleteTransactionCommand(value: unknown): DeleteTransaction
   return { planId: parsed.plan_id, transactionId: parsed.transaction_id };
 }
 
-export function parseCreateScheduledTransactionCommand(value: unknown): CreateScheduledTransactionCommand {
+export function parseCreateScheduledTransactionCommand(
+  value: unknown,
+): CreateScheduledTransactionCommand {
   const parsed = createScheduledTransactionCommandSchema.parse(value);
   assertPayeeFields(parsed.payee_id, parsed.payee_name);
   return {
@@ -355,7 +405,9 @@ export function parseCreateScheduledTransactionCommand(value: unknown): CreateSc
   };
 }
 
-export function parseUpdateScheduledTransactionCommand(value: unknown): UpdateScheduledTransactionCommand {
+export function parseUpdateScheduledTransactionCommand(
+  value: unknown,
+): UpdateScheduledTransactionCommand {
   const parsed = updateScheduledTransactionCommandSchema.parse(value);
   assertPayeeFields(parsed.payee_id, parsed.payee_name);
   const scheduledTransaction = compact({
@@ -369,16 +421,28 @@ export function parseUpdateScheduledTransactionCommand(value: unknown): UpdateSc
     memo: parsed.memo,
     flag_color: parsed.flag_color,
   });
-  assertNonEmptyUpdate(scheduledTransaction, "At least one scheduled transaction field must be provided to update.");
-  return { planId: parsed.plan_id, scheduledTransactionId: parsed.scheduled_transaction_id, scheduledTransaction };
+  assertNonEmptyUpdate(
+    scheduledTransaction,
+    "At least one scheduled transaction field must be provided to update.",
+  );
+  return {
+    planId: parsed.plan_id,
+    scheduledTransactionId: parsed.scheduled_transaction_id,
+    scheduledTransaction,
+  };
 }
 
-export function parseDeleteScheduledTransactionCommand(value: unknown): DeleteScheduledTransactionCommand {
+export function parseDeleteScheduledTransactionCommand(
+  value: unknown,
+): DeleteScheduledTransactionCommand {
   const parsed = deleteScheduledTransactionCommandSchema.parse(value);
   return { planId: parsed.plan_id, scheduledTransactionId: parsed.scheduled_transaction_id };
 }
 
-function assertPayeeFields(payeeIdValue: PayeeId | undefined, payeeNameValue: string | undefined): void {
+function assertPayeeFields(
+  payeeIdValue: PayeeId | undefined,
+  payeeNameValue: string | undefined,
+): void {
   if (payeeIdValue && payeeNameValue) {
     throw new Error("Provide either payee_id or payee_name, not both.");
   }
@@ -389,17 +453,23 @@ function assertGoalFields(
   goalTarget: Milliunits | null | undefined,
   goalTargetDate: IsoDate | null | undefined,
 ): void {
-  if (goalNeedsWholeAmount !== undefined && goalTarget === undefined && goalTargetDate === undefined) {
+  if (
+    goalNeedsWholeAmount !== undefined &&
+    goalTarget === undefined &&
+    goalTargetDate === undefined
+  ) {
     throw new Error("goal_needs_whole_amount requires goal_target or goal_target_date.");
   }
 }
 
-function assertNonEmptyUpdate(value: Record<string, unknown>, message: string): void {
+function assertNonEmptyUpdate(value: object, message: string): void {
   if (Object.keys(value).length === 0) {
     throw new Error(message);
   }
 }
 
-function compact<T extends Record<string, unknown>>(value: T): Partial<T> {
-  return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined)) as Partial<T>;
+function compact<T extends Record<string, unknown>>(value: T): Compact<T> {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entry]) => entry !== undefined),
+  ) as Compact<T>;
 }

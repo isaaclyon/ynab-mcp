@@ -15,7 +15,11 @@ export function createMcpAuthMiddleware(options: {
     const header = req.header("authorization") ?? "";
     const [scheme, token] = header.split(" ");
     if (scheme?.toLowerCase() !== "bearer" || !token) {
-      sendUnauthorized(res, options.oauthServer.protectedResourceMetadataUrl(), "Missing bearer token");
+      sendUnauthorized(
+        res,
+        options.oauthServer.protectedResourceMetadataUrl(),
+        "Missing bearer token",
+      );
       return;
     }
 
@@ -26,7 +30,11 @@ export function createMcpAuthMiddleware(options: {
         next();
       })
       .catch(() => {
-        sendUnauthorized(res, options.oauthServer.protectedResourceMetadataUrl(), "Invalid bearer token");
+        sendUnauthorized(
+          res,
+          options.oauthServer.protectedResourceMetadataUrl(),
+          "Invalid bearer token",
+        );
       });
   };
 }

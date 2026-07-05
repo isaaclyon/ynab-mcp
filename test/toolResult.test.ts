@@ -35,7 +35,9 @@ describe("tool result error shaping", () => {
   });
 
   it("includes retry guidance for YNAB rate limit responses", () => {
-    const payload = ynabApiErrorPayload(new YnabApiError("rate limited", 429, { error: { detail: "Slow down" } }, 30));
+    const payload = ynabApiErrorPayload(
+      new YnabApiError("rate limited", 429, { error: { detail: "Slow down" } }, 30),
+    );
 
     expect(payload.error).toMatchObject({
       code: "ynab_rate_limited",
@@ -63,7 +65,9 @@ describe("tool result error shaping", () => {
   });
 
   it("returns YNAB failures as structured MCP tool errors", async () => {
-    const result = await ynabResult(Promise.reject(new YnabApiError("missing", 404, { error: { detail: "No such category" } })));
+    const result = await ynabResult(
+      Promise.reject(new YnabApiError("missing", 404, { error: { detail: "No such category" } })),
+    );
 
     expect(result.isError).toBe(true);
     expect(result.structuredContent).toMatchObject({
@@ -71,10 +75,13 @@ describe("tool result error shaping", () => {
     });
     const first = result.content[0];
     expect(first?.type).toBe("text");
-    expect(JSON.parse(first?.type === "text" ? first.text : "{}") as unknown).toEqual(result.structuredContent);
+    expect(JSON.parse(first?.type === "text" ? first.text : "{}") as unknown).toEqual(
+      result.structuredContent,
+    );
   });
   it("does not convert shaped-output validation failures into structured YNAB API errors", async () => {
-    await expect(ynabResult(Promise.resolve({ data: {} }), shapePlans)).rejects.toBeInstanceOf(YnabResponseShapeError);
+    await expect(ynabResult(Promise.resolve({ data: {} }), shapePlans)).rejects.toBeInstanceOf(
+      YnabResponseShapeError,
+    );
   });
-
 });

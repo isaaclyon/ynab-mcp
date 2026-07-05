@@ -7,7 +7,12 @@ import { ynabResult } from "../result.js";
 import { planId, writePayeeId } from "../schemas.js";
 import { shapePayee } from "../shaping.js";
 
-const payeeNameValue = z.string().trim().min(1).max(100).describe("Payee name. Must be 1-100 non-blank characters.");
+const payeeNameValue = z
+  .string()
+  .trim()
+  .min(1)
+  .max(100)
+  .describe("Payee name. Must be 1-100 non-blank characters.");
 
 export function registerPayeeWriteTools(server: McpServer, ynab: YnabClient): void {
   server.registerTool(
@@ -34,7 +39,10 @@ export function registerPayeeWriteTools(server: McpServer, ynab: YnabClient): vo
     },
     (args) => {
       const command = parseUpdatePayeeCommand(args);
-      return ynabResult(ynab.updatePayee(command.planId, command.payeeId, command.payee), shapePayee);
+      return ynabResult(
+        ynab.updatePayee(command.planId, command.payeeId, command.payee),
+        shapePayee,
+      );
     },
   );
 }

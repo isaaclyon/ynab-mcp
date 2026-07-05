@@ -26,16 +26,16 @@ Do not let agent instructions invent domain concepts, architecture, or decisions
 
 ## What goes where
 
-| Fact type | Owner |
-| --- | --- |
-| durable shared language | `CONTEXT.md` |
-| durable hard-to-reverse decisions | `docs/adr/` |
-| current architecture synthesis | `ARCHITECTURE.md` |
-| medium-term sequencing | `ROADMAP.md` |
-| temporary implementation plans/checklists | `docs/plans/` |
-| engineering standards | `docs/guidelines/engineering-standards.md` |
-| agent/dev workflow rules | `AGENTS.md` |
-| local enforcement-seam rationale | short code comment with ADR reference |
+| Fact type                                 | Owner                                      |
+| ----------------------------------------- | ------------------------------------------ |
+| durable shared language                   | `CONTEXT.md`                               |
+| durable hard-to-reverse decisions         | `docs/adr/`                                |
+| current architecture synthesis            | `ARCHITECTURE.md`                          |
+| medium-term sequencing                    | `ROADMAP.md`                               |
+| temporary implementation plans/checklists | `docs/plans/`                              |
+| engineering standards                     | `docs/guidelines/engineering-standards.md` |
+| agent/dev workflow rules                  | `AGENTS.md`                                |
+| local enforcement-seam rationale          | short code comment with ADR reference      |
 
 ## Before finishing material work
 

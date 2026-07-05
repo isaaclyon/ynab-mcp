@@ -2,7 +2,7 @@
 
 ## Testing
 
-- Required command surface once code exists: `npm run typecheck`, `npm test`, and a scripted MCP smoke check for `initialize`, `tools/list`, and at least one tool call.
+- Required command surface once code exists: `npm run format:check`, `npm run lint`, `npm run typecheck`, `npm test`, and a scripted MCP smoke check for `initialize`, `tools/list`, and at least one tool call.
 - New YNAB client behavior should have unit tests around request construction, error handling, and result shaping.
 - New MCP tools should have schema/handler tests or smoke coverage with mocked YNAB responses.
 - Bug fixes should start with a failing test or reproducible scripted check when practical.
@@ -13,6 +13,7 @@
 - TypeScript should use `strict` mode.
 - Avoid `any`; prefer `unknown` at API boundaries and parse/narrow before use.
 - YNAB API responses may be partially typed at first, but tool outputs should be intentionally shaped rather than raw dumps.
+- Formatting is owned by Prettier; linting is owned by type-aware ESLint rules from `typescript-eslint`.
 
 ## Boundary design
 

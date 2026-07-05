@@ -82,8 +82,12 @@ describe("private OAuth scaffold", () => {
       owner_passphrase: "correct horse battery staple",
     };
 
-    const authorizeResponse = await request(app).post("/authorize").type("form").send(authorizeParams).expect(302);
-    const location = new URL(assertHeader(authorizeResponse.header.location));
+    const authorizeResponse = await request(app)
+      .post("/authorize")
+      .type("form")
+      .send(authorizeParams)
+      .expect(302);
+    const location = new URL(assertHeader(authorizeResponse.header["location"]));
     expect(location.origin + location.pathname).toBe(REDIRECT_URI);
     expect(location.searchParams.get("state")).toBe("state-1");
     const code = location.searchParams.get("code");
@@ -112,14 +116,20 @@ describe("private OAuth scaffold", () => {
       })
       .expect(200);
 
-    expect(tokenResponse.body).toMatchObject({ token_type: "Bearer", expires_in: 3600, scope: "ynab:read" });
+    expect(tokenResponse.body).toMatchObject({
+      token_type: "Bearer",
+      expires_in: 3600,
+      scope: "ynab:read",
+    });
     expect(typeof tokenResponse.body.access_token).toBe("string");
     expect(typeof tokenResponse.body.refresh_token).toBe("string");
   });
 
   it("does not authorize with a known fallback passphrase when owner passphrase is omitted", async () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(clientMetadataResponse());
-    const app = createApp(testConfig({ ownerPassphrase: undefined, devAuthBypass: true }), { fetchImpl });
+    const app = createApp(testConfig({ ownerPassphrase: undefined, devAuthBypass: true }), {
+      fetchImpl,
+    });
 
     await request(app)
       .post("/authorize")
@@ -151,7 +161,10 @@ describe("private OAuth scaffold", () => {
       })
       .expect(400);
 
-    expect(response.body).toMatchObject({ error: "invalid_request", error_description: "Unknown client_id" });
+    expect(response.body).toMatchObject({
+      error: "invalid_request",
+      error_description: "Unknown client_id",
+    });
   });
 
   it("rejects dev auth bypass in production config", () => {

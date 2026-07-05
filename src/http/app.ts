@@ -1,7 +1,12 @@
 import express, { type Express } from "express";
-import { StreamableHTTPServerTransport } from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import {
+  StreamableHTTPServerTransport,
+  type StreamableHTTPServerTransportOptions,
+} from "@modelcontextprotocol/sdk/server/streamableHttp.js";
+import type { Transport } from "@modelcontextprotocol/sdk/shared/transport.js";
 import type { AppConfig } from "../config.js";
 import { PrivateOAuthServer } from "../auth/oauth.js";
+import type { PrivateOAuthConfig } from "../auth/oauth.js";
 import { createMcpAuthMiddleware } from "../auth/middleware.js";
 import { YnabClient } from "../ynab/client.js";
 import { createMcpServer } from "../mcp/server.js";
@@ -23,12 +28,13 @@ export function createApp(config: AppConfig, dependencies: AppDependencies = {})
       accessToken: config.ynabAccessToken,
       ...(dependencies.fetchImpl ? { fetchImpl: dependencies.fetchImpl } : {}),
     });
-  const oauthServer = new PrivateOAuthServer({
+  const oauthConfig = {
     issuerUrl: config.publicBaseUrl,
     resourceUrl: config.mcpUrl,
-    ownerPassphrase: config.ownerPassphrase,
+    ...(config.ownerPassphrase === undefined ? {} : { ownerPassphrase: config.ownerPassphrase }),
     ...(dependencies.fetchImpl ? { fetchImpl: dependencies.fetchImpl } : {}),
-  });
+  } satisfies PrivateOAuthConfig;
+  const oauthServer = new PrivateOAuthServer(oauthConfig);
 
   app.get("/health", (_req, res) => {
     res.json({ ok: true });
@@ -42,7 +48,7 @@ export function createApp(config: AppConfig, dependencies: AppDependencies = {})
     }),
   );
   app.post("/mcp", express.json({ limit: "1mb" }), async (req, res) => {
-    const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
+    const transport = new StreamableHTTPServerTransport(statelessTransportOptions());
     const mcpServer = createMcpServer(ynabClient);
     res.on("close", () => {
       void transport.close();
@@ -50,9 +56,9 @@ export function createApp(config: AppConfig, dependencies: AppDependencies = {})
     });
 
     try {
-      await mcpServer.connect(transport);
+      await mcpServer.connect(transport as Transport);
       await transport.handleRequest(req, res, req.body);
-    } catch (error) {
+    } catch (_error) {
       if (!res.headersSent) {
         res.status(500).json({
           jsonrpc: "2.0",
@@ -63,8 +69,17 @@ export function createApp(config: AppConfig, dependencies: AppDependencies = {})
     }
   });
   app.get("/mcp", (_req, res) => {
-    res.status(405).json({ error: "method_not_allowed", error_description: "Use POST for stateless MCP requests." });
+    res.status(405).json({
+      error: "method_not_allowed",
+      error_description: "Use POST for stateless MCP requests.",
+    });
   });
 
   return app;
+}
+
+function statelessTransportOptions(): StreamableHTTPServerTransportOptions {
+  // The MCP SDK documents explicit `undefined` as the stateless Streamable HTTP mode,
+  // but its published types are not exact-optional clean under TypeScript's strictest mode.
+  return { sessionIdGenerator: undefined } as unknown as StreamableHTTPServerTransportOptions;
 }

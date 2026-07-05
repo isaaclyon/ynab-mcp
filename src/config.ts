@@ -8,8 +8,8 @@ const booleanFromEnv = z
 const envSchema = z.object({
   NODE_ENV: z.string().default("development"),
   PORT: z.coerce.number().int().min(1).max(65535).default(3000),
-  PUBLIC_BASE_URL: z.string().url().default("http://localhost:3000"),
-  YNAB_API_BASE_URL: z.string().url().default("https://api.ynab.com/v1"),
+  PUBLIC_BASE_URL: z.url().default("http://localhost:3000"),
+  YNAB_API_BASE_URL: z.url().default("https://api.ynab.com/v1"),
   YNAB_ACCESS_TOKEN: z.string().min(1).optional(),
   OWNER_PASSPHRASE: z.string().min(16).optional(),
   DEV_AUTH_BYPASS: booleanFromEnv.default(false),
@@ -28,7 +28,11 @@ export type AppConfig = {
 
 const appConfigSchema = envSchema.transform((parsed, ctx) => {
   if (parsed.DEV_AUTH_BYPASS && parsed.NODE_ENV === "production") {
-    ctx.addIssue({ code: "custom", message: "DEV_AUTH_BYPASS must not be enabled in production", path: ["DEV_AUTH_BYPASS"] });
+    ctx.addIssue({
+      code: "custom",
+      message: "DEV_AUTH_BYPASS must not be enabled in production",
+      path: ["DEV_AUTH_BYPASS"],
+    });
     return z.NEVER;
   }
 
@@ -42,7 +46,11 @@ const appConfigSchema = envSchema.transform((parsed, ctx) => {
   }
 
   if (!parsed.YNAB_ACCESS_TOKEN) {
-    ctx.addIssue({ code: "custom", message: "YNAB_ACCESS_TOKEN is required", path: ["YNAB_ACCESS_TOKEN"] });
+    ctx.addIssue({
+      code: "custom",
+      message: "YNAB_ACCESS_TOKEN is required",
+      path: ["YNAB_ACCESS_TOKEN"],
+    });
     return z.NEVER;
   }
 

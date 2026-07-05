@@ -1,5 +1,5 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
-import { YnabApiError, YnabClient } from "../src/ynab/client.js";
+import { type YnabApiError, YnabClient } from "../src/ynab/client.js";
 import {
   accountIdSchema,
   categoryGroupIdSchema,
@@ -12,7 +12,6 @@ import {
   scheduledTransactionIdSchema,
   transactionIdSchema,
 } from "../src/domain/ynabValues.js";
-
 
 const planId = (value: string) => planIdSchema.parse(value);
 const accountId = (value: string) => accountIdSchema.parse(value);
@@ -39,7 +38,9 @@ describe("YnabClient", () => {
   });
 
   it("builds authenticated plan-scoped GET requests", async () => {
-    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ data: { accounts: [] } }));
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(jsonResponse({ data: { accounts: [] } }));
     const client = new YnabClient({
       baseUrl: new URL("https://api.ynab.test/v1"),
       accessToken: "secret-token",
@@ -56,7 +57,9 @@ describe("YnabClient", () => {
   });
 
   it("adds transaction since_date without leaking token into URL", async () => {
-    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async () => jsonResponse({ data: { transactions: [] } }));
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockImplementation(async () => jsonResponse({ data: { transactions: [] } }));
     const client = new YnabClient({
       baseUrl: new URL("https://api.ynab.test/v1/"),
       accessToken: "secret-token",
@@ -66,14 +69,16 @@ describe("YnabClient", () => {
     await client.listTransactions(planId("plan-1"), isoDate("2026-07-01"));
 
     const [url] = fetchImpl.mock.calls[0] ?? [];
-    expect(String(url)).toBe("https://api.ynab.test/v1/plans/plan-1/transactions?since_date=2026-07-01");
+    expect(String(url)).toBe(
+      "https://api.ynab.test/v1/plans/plan-1/transactions?since_date=2026-07-01",
+    );
     expect(String(url)).not.toContain("secret-token");
   });
 
   it("throws a typed error for upstream failures", async () => {
-    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
-      jsonResponse({ error: { detail: "nope" } }, { status: 401 }),
-    );
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(jsonResponse({ error: { detail: "nope" } }, { status: 401 }));
     const client = new YnabClient({
       baseUrl: new URL("https://api.ynab.test/v1"),
       accessToken: "secret-token",
@@ -88,9 +93,14 @@ describe("YnabClient", () => {
   });
 
   it("captures retry-after seconds for upstream rate limits", async () => {
-    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
-      jsonResponse({ error: { detail: "slow down" } }, { status: 429, headers: { "retry-after": "45" } }),
-    );
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        jsonResponse(
+          { error: { detail: "slow down" } },
+          { status: 429, headers: { "retry-after": "45" } },
+        ),
+      );
     const client = new YnabClient({
       baseUrl: new URL("https://api.ynab.test/v1"),
       accessToken: "secret-token",
@@ -110,7 +120,10 @@ describe("YnabClient", () => {
     const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
       jsonResponse(
         { error: { detail: "slow down" } },
-        { status: 429, headers: { "retry-after": new Date("2026-07-03T00:01:30.000Z").toUTCString() } },
+        {
+          status: 429,
+          headers: { "retry-after": new Date("2026-07-03T00:01:30.000Z").toUTCString() },
+        },
       ),
     );
     const client = new YnabClient({
@@ -127,7 +140,9 @@ describe("YnabClient", () => {
   });
 
   it("caches repeated GET requests within the read-through cache TTL", async () => {
-    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ data: { accounts: [{ id: "account-1" }] } }));
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(jsonResponse({ data: { accounts: [{ id: "account-1" }] } }));
     const client = new YnabClient({
       baseUrl: new URL("https://api.ynab.test/v1"),
       accessToken: "secret-token",
@@ -146,7 +161,9 @@ describe("YnabClient", () => {
     const fetchImpl = vi.fn<typeof fetch>().mockImplementation(
       async () =>
         new Promise<Response>((resolve) => {
-          setTimeout(() => resolve(jsonResponse({ data: { plans: [{ id: "plan-1" }] } })), 10);
+          setTimeout(() => {
+            resolve(jsonResponse({ data: { plans: [{ id: "plan-1" }] } }));
+          }, 10);
         }),
     );
     const client = new YnabClient({
@@ -418,9 +435,15 @@ describe("YnabClient", () => {
   it("clears cached reads after successful write requests", async () => {
     const fetchImpl = vi
       .fn<typeof fetch>()
-      .mockResolvedValueOnce(jsonResponse({ data: { payees: [{ id: "payee-1", name: "Old Coffee" }] } }))
-      .mockResolvedValueOnce(jsonResponse({ data: { payee: { id: "payee-2", name: "New Coffee" } } }, { status: 201 }))
-      .mockResolvedValueOnce(jsonResponse({ data: { payees: [{ id: "payee-2", name: "New Coffee" }] } }));
+      .mockResolvedValueOnce(
+        jsonResponse({ data: { payees: [{ id: "payee-1", name: "Old Coffee" }] } }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ data: { payee: { id: "payee-2", name: "New Coffee" } } }, { status: 201 }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ data: { payees: [{ id: "payee-2", name: "New Coffee" }] } }),
+      );
     const client = new YnabClient({
       baseUrl: new URL("https://api.ynab.test/v1"),
       accessToken: "secret-token",
@@ -437,7 +460,9 @@ describe("YnabClient", () => {
   });
 
   it("creates categories with the expected wrapper", async () => {
-    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ data: { category: { id: "cat-1" } } }, { status: 201 }));
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(jsonResponse({ data: { category: { id: "cat-1" } } }, { status: 201 }));
     const client = new YnabClient({
       baseUrl: new URL("https://api.ynab.test/v1"),
       accessToken: "secret-token",
@@ -455,15 +480,26 @@ describe("YnabClient", () => {
     const [url, init] = fetchImpl.mock.calls[0] ?? [];
     expect(String(url)).toBe("https://api.ynab.test/v1/plans/plan-1/categories");
     expect(init?.method).toBe("POST");
-    expect(init?.headers).toMatchObject({ "Content-Type": "application/json", Authorization: "Bearer secret-token" });
+    expect(init?.headers).toMatchObject({
+      "Content-Type": "application/json",
+      Authorization: "Bearer secret-token",
+    });
     expect(JSON.parse(String(init?.body))).toEqual({
-      category: { category_group_id: categoryGroupId("group-1"), name: "Coffee", note: "Monthly coffee target", goal_target: 50000 },
+      category: {
+        category_group_id: categoryGroupId("group-1"),
+        name: "Coffee",
+        note: "Monthly coffee target",
+        goal_target: 50000,
+      },
     });
   });
 
-
   it("creates category groups with the expected wrapper", async () => {
-    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ data: { category_group: { id: "group-1" } } }, { status: 201 }));
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(
+        jsonResponse({ data: { category_group: { id: "group-1" } } }, { status: 201 }),
+      );
     const client = new YnabClient({
       baseUrl: new URL("https://api.ynab.test/v1"),
       accessToken: "secret-token",
@@ -479,26 +515,39 @@ describe("YnabClient", () => {
   });
 
   it("updates categories and category groups with PATCH", async () => {
-    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async () => jsonResponse({ data: { category_group: { id: "group-1" } } }));
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockImplementation(async () =>
+        jsonResponse({ data: { category_group: { id: "group-1" } } }),
+      );
     const client = new YnabClient({
       baseUrl: new URL("https://api.ynab.test/v1"),
       accessToken: "secret-token",
       fetchImpl,
     });
 
-    await client.updateCategoryGroup(planId("plan-1"), categoryGroupId("group-1"), { name: "Flexible" });
-    await client.updateCategory(planId("plan-1"), categoryId("cat-1"), { name: "Coffee Beans", note: null });
+    await client.updateCategoryGroup(planId("plan-1"), categoryGroupId("group-1"), {
+      name: "Flexible",
+    });
+    await client.updateCategory(planId("plan-1"), categoryId("cat-1"), {
+      name: "Coffee Beans",
+      note: null,
+    });
 
     expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
       "https://api.ynab.test/v1/plans/plan-1/category_groups/group-1",
       "https://api.ynab.test/v1/plans/plan-1/categories/cat-1",
     ]);
     expect(fetchImpl.mock.calls.map(([, init]) => init?.method)).toEqual(["PATCH", "PATCH"]);
-    expect(JSON.parse(String(fetchImpl.mock.calls[1]?.[1]?.body))).toEqual({ category: { name: "Coffee Beans", note: null } });
+    expect(JSON.parse(String(fetchImpl.mock.calls[1]?.[1]?.body))).toEqual({
+      category: { name: "Coffee Beans", note: null },
+    });
   });
 
   it("creates transactions with the expected wrapper", async () => {
-    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ data: { transaction: { id: "txn-1" } } }, { status: 201 }));
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(jsonResponse({ data: { transaction: { id: "txn-1" } } }, { status: 201 }));
     const client = new YnabClient({
       baseUrl: new URL("https://api.ynab.test/v1"),
       accessToken: "secret-token",
@@ -521,7 +570,10 @@ describe("YnabClient", () => {
     const [url, init] = fetchImpl.mock.calls[0] ?? [];
     expect(String(url)).toBe("https://api.ynab.test/v1/plans/plan-1/transactions");
     expect(init?.method).toBe("POST");
-    expect(init?.headers).toMatchObject({ "Content-Type": "application/json", Authorization: "Bearer secret-token" });
+    expect(init?.headers).toMatchObject({
+      "Content-Type": "application/json",
+      Authorization: "Bearer secret-token",
+    });
     expect(JSON.parse(String(init?.body))).toEqual({
       transaction: {
         account_id: accountId("account-1"),
@@ -539,23 +591,33 @@ describe("YnabClient", () => {
   });
 
   it("updates transactions with PUT and a transaction wrapper", async () => {
-    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse({ data: { transaction: { id: "txn-1" } } }));
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(jsonResponse({ data: { transaction: { id: "txn-1" } } }));
     const client = new YnabClient({
       baseUrl: new URL("https://api.ynab.test/v1"),
       accessToken: "secret-token",
       fetchImpl,
     });
 
-    await client.updateTransaction(planId("plan-1"), transactionId("txn-1"), { memo: null, approved: false, category_id: null });
+    await client.updateTransaction(planId("plan-1"), transactionId("txn-1"), {
+      memo: null,
+      approved: false,
+      category_id: null,
+    });
 
     const [url, init] = fetchImpl.mock.calls[0] ?? [];
     expect(String(url)).toBe("https://api.ynab.test/v1/plans/plan-1/transactions/txn-1");
     expect(init?.method).toBe("PUT");
-    expect(JSON.parse(String(init?.body))).toEqual({ transaction: { memo: null, approved: false, category_id: null } });
+    expect(JSON.parse(String(init?.body))).toEqual({
+      transaction: { memo: null, approved: false, category_id: null },
+    });
   });
 
   it("builds scoped transaction list and delete requests", async () => {
-    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async () => jsonResponse({ data: { transactions: [] } }));
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockImplementation(async () => jsonResponse({ data: { transactions: [] } }));
     const client = new YnabClient({
       baseUrl: new URL("https://api.ynab.test/v1"),
       accessToken: "secret-token",
@@ -575,12 +637,20 @@ describe("YnabClient", () => {
       "https://api.ynab.test/v1/plans/plan-1/months/2026-07-01/transactions",
       "https://api.ynab.test/v1/plans/plan-1/transactions/txn-1",
     ]);
-    expect(fetchImpl.mock.calls.map(([, init]) => init?.method)).toEqual(["GET", "GET", "GET", "GET", "DELETE"]);
+    expect(fetchImpl.mock.calls.map(([, init]) => init?.method)).toEqual([
+      "GET",
+      "GET",
+      "GET",
+      "GET",
+      "DELETE",
+    ]);
     expect(fetchImpl.mock.calls[4]?.[1]?.body).toBeUndefined();
   });
 
   it("builds month category budgeting requests", async () => {
-    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async () => jsonResponse({ data: { category: { id: "cat-1" } } }));
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockImplementation(async () => jsonResponse({ data: { category: { id: "cat-1" } } }));
     const client = new YnabClient({
       baseUrl: new URL("https://api.ynab.test/v1"),
       accessToken: "secret-token",
@@ -590,7 +660,9 @@ describe("YnabClient", () => {
     await client.listMonths(planId("plan-1"));
     await client.getMonth(planId("plan-1"), month("2026-07"));
     await client.getMonthCategory(planId("plan-1"), month("2026-07"), categoryId("cat-1"));
-    await client.updateMonthCategory(planId("plan-1"), month("2026-07"), categoryId("cat-1"), { budgeted: milliunits(25000) });
+    await client.updateMonthCategory(planId("plan-1"), month("2026-07"), categoryId("cat-1"), {
+      budgeted: milliunits(25000),
+    });
 
     expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
       "https://api.ynab.test/v1/plans/plan-1/months",
@@ -598,12 +670,21 @@ describe("YnabClient", () => {
       "https://api.ynab.test/v1/plans/plan-1/months/2026-07-01/categories/cat-1",
       "https://api.ynab.test/v1/plans/plan-1/months/2026-07-01/categories/cat-1",
     ]);
-    expect(fetchImpl.mock.calls.map(([, init]) => init?.method)).toEqual(["GET", "GET", "GET", "PATCH"]);
-    expect(JSON.parse(String(fetchImpl.mock.calls[3]?.[1]?.body))).toEqual({ category: { budgeted: milliunits(25000) } });
+    expect(fetchImpl.mock.calls.map(([, init]) => init?.method)).toEqual([
+      "GET",
+      "GET",
+      "GET",
+      "PATCH",
+    ]);
+    expect(JSON.parse(String(fetchImpl.mock.calls[3]?.[1]?.body))).toEqual({
+      category: { budgeted: milliunits(25000) },
+    });
   });
 
   it("builds payee CRUD requests", async () => {
-    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async () => jsonResponse({ data: { payee: { id: "payee-1" } } }));
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockImplementation(async () => jsonResponse({ data: { payee: { id: "payee-1" } } }));
     const client = new YnabClient({
       baseUrl: new URL("https://api.ynab.test/v1"),
       accessToken: "secret-token",
@@ -621,13 +702,26 @@ describe("YnabClient", () => {
       "https://api.ynab.test/v1/plans/plan-1/payees/payee-1",
       "https://api.ynab.test/v1/plans/plan-1/payees/payee-1",
     ]);
-    expect(fetchImpl.mock.calls.map(([, init]) => init?.method)).toEqual(["GET", "POST", "GET", "PATCH"]);
-    expect(JSON.parse(String(fetchImpl.mock.calls[1]?.[1]?.body))).toEqual({ payee: { name: "Coffee Shop" } });
-    expect(JSON.parse(String(fetchImpl.mock.calls[3]?.[1]?.body))).toEqual({ payee: { name: "Coffee Roaster" } });
+    expect(fetchImpl.mock.calls.map(([, init]) => init?.method)).toEqual([
+      "GET",
+      "POST",
+      "GET",
+      "PATCH",
+    ]);
+    expect(JSON.parse(String(fetchImpl.mock.calls[1]?.[1]?.body))).toEqual({
+      payee: { name: "Coffee Shop" },
+    });
+    expect(JSON.parse(String(fetchImpl.mock.calls[3]?.[1]?.body))).toEqual({
+      payee: { name: "Coffee Roaster" },
+    });
   });
 
   it("builds scheduled transaction CRUD requests", async () => {
-    const fetchImpl = vi.fn<typeof fetch>().mockImplementation(async () => jsonResponse({ data: { scheduled_transaction: { id: "sched-1" } } }));
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockImplementation(async () =>
+        jsonResponse({ data: { scheduled_transaction: { id: "sched-1" } } }),
+      );
     const client = new YnabClient({
       baseUrl: new URL("https://api.ynab.test/v1"),
       accessToken: "secret-token",
@@ -646,7 +740,10 @@ describe("YnabClient", () => {
       flag_color: "green",
     });
     await client.getScheduledTransaction(planId("plan-1"), scheduledTransactionId("sched-1"));
-    await client.updateScheduledTransaction(planId("plan-1"), scheduledTransactionId("sched-1"), { memo: null, frequency: "weekly" });
+    await client.updateScheduledTransaction(planId("plan-1"), scheduledTransactionId("sched-1"), {
+      memo: null,
+      frequency: "weekly",
+    });
     await client.deleteScheduledTransaction(planId("plan-1"), scheduledTransactionId("sched-1"));
 
     expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
@@ -656,7 +753,13 @@ describe("YnabClient", () => {
       "https://api.ynab.test/v1/plans/plan-1/scheduled_transactions/sched-1",
       "https://api.ynab.test/v1/plans/plan-1/scheduled_transactions/sched-1",
     ]);
-    expect(fetchImpl.mock.calls.map(([, init]) => init?.method)).toEqual(["GET", "POST", "GET", "PUT", "DELETE"]);
+    expect(fetchImpl.mock.calls.map(([, init]) => init?.method)).toEqual([
+      "GET",
+      "POST",
+      "GET",
+      "PUT",
+      "DELETE",
+    ]);
     expect(JSON.parse(String(fetchImpl.mock.calls[1]?.[1]?.body))).toEqual({
       scheduled_transaction: {
         account_id: accountId("account-1"),
@@ -669,7 +772,9 @@ describe("YnabClient", () => {
         flag_color: "green",
       },
     });
-    expect(JSON.parse(String(fetchImpl.mock.calls[3]?.[1]?.body))).toEqual({ scheduled_transaction: { memo: null, frequency: "weekly" } });
+    expect(JSON.parse(String(fetchImpl.mock.calls[3]?.[1]?.body))).toEqual({
+      scheduled_transaction: { memo: null, frequency: "weekly" },
+    });
     expect(fetchImpl.mock.calls[4]?.[1]?.body).toBeUndefined();
   });
 });

@@ -1,7 +1,10 @@
 import { randomBytes, timingSafeEqual, createHash } from "node:crypto";
 import express, { type NextFunction, type Request, type Response, type Router } from "express";
 import { z } from "zod";
-import type { OAuthClientInformationFull, OAuthTokens } from "@modelcontextprotocol/sdk/shared/auth.js";
+import type {
+  OAuthClientInformationFull,
+  OAuthTokens,
+} from "@modelcontextprotocol/sdk/shared/auth.js";
 import type { AuthInfo } from "@modelcontextprotocol/sdk/server/auth/types.js";
 
 export const MCP_SCOPE = "ynab:read";
@@ -42,27 +45,27 @@ type StoredRefreshToken = {
 
 const authorizeQuerySchema = z.object({
   response_type: z.literal("code"),
-  client_id: z.string().url(),
-  redirect_uri: z.string().url(),
+  client_id: z.url(),
+  redirect_uri: z.url(),
   code_challenge: z.string().min(32),
   code_challenge_method: z.literal("S256"),
   scope: z.string().optional(),
   state: z.string().optional(),
-  resource: z.string().url().optional(),
+  resource: z.url().optional(),
 });
 
 const tokenBodySchema = z.object({
   grant_type: z.enum(["authorization_code", "refresh_token"]),
-  client_id: z.string().url(),
+  client_id: z.url(),
   code: z.string().optional(),
   code_verifier: z.string().optional(),
-  redirect_uri: z.string().url().optional(),
+  redirect_uri: z.url().optional(),
   refresh_token: z.string().optional(),
-  resource: z.string().url().optional(),
+  resource: z.url().optional(),
 });
 
 const clientMetadataSchema = z.object({
-  redirect_uris: z.array(z.string().url()).min(1),
+  redirect_uris: z.array(z.url()).min(1),
   token_endpoint_auth_method: z.string().optional(),
   grant_types: z.array(z.string()).optional(),
   response_types: z.array(z.string()).optional(),
@@ -100,7 +103,10 @@ export class PrivateOAuthServer {
     router.get("/.well-known/oauth-protected-resource/mcp", (_req, res) => {
       res.json(this.protectedResourceMetadata());
     });
-    router.get("/authorize", asyncHandler((req, res) => this.handleAuthorizeGet(req, res)));
+    router.get(
+      "/authorize",
+      asyncHandler((req, res) => this.handleAuthorizeGet(req, res)),
+    );
     router.post(
       "/authorize",
       express.urlencoded({ extended: false }),
@@ -170,13 +176,14 @@ export class PrivateOAuthServer {
       return;
     }
 
-    const parsed = authorizeQuerySchema.safeParse(req.body);
+    const requestBody: unknown = req.body;
+    const parsed = authorizeQuerySchema.safeParse(requestBody);
     if (!parsed.success) {
       res.status(400).json(oauthError("invalid_request", parsed.error.message));
       return;
     }
 
-    const passphrase = typeof req.body.owner_passphrase === "string" ? req.body.owner_passphrase : "";
+    const passphrase = ownerPassphraseFromBody(requestBody);
     if (!secureEqual(passphrase, this.ownerPassphrase)) {
       res.status(403).type("html").send(renderAuthorizePage(parsed.data, "Invalid passphrase."));
       return;
@@ -232,7 +239,9 @@ export class PrivateOAuthServer {
 
   private handleAuthorizationCodeGrant(body: TokenBody, res: Response): void {
     if (!body.code || !body.code_verifier || !body.redirect_uri) {
-      res.status(400).json(oauthError("invalid_request", "code, code_verifier, and redirect_uri are required"));
+      res
+        .status(400)
+        .json(oauthError("invalid_request", "code, code_verifier, and redirect_uri are required"));
       return;
     }
 
@@ -242,11 +251,15 @@ export class PrivateOAuthServer {
       return;
     }
     if (body.redirect_uri && body.redirect_uri !== code.redirectUri) {
-      res.status(400).json(oauthError("invalid_grant", "redirect_uri does not match authorization request"));
+      res
+        .status(400)
+        .json(oauthError("invalid_grant", "redirect_uri does not match authorization request"));
       return;
     }
     if (!verifyPkce(body.code_verifier, code.codeChallenge)) {
-      res.status(400).json(oauthError("invalid_grant", "code_verifier does not match code_challenge"));
+      res
+        .status(400)
+        .json(oauthError("invalid_grant", "code_verifier does not match code_challenge"));
       return;
     }
 
@@ -268,7 +281,9 @@ export class PrivateOAuthServer {
 
     const requestedResource = body.resource ? new URL(body.resource) : stored.resource;
     if (stripHash(requestedResource.href) !== stripHash(stored.resource.href)) {
-      res.status(400).json(oauthError("invalid_target", "Refresh token cannot be used for that resource"));
+      res
+        .status(400)
+        .json(oauthError("invalid_target", "Refresh token cannot be used for that resource"));
       return;
     }
 
@@ -402,7 +417,12 @@ function asyncHandler(
   };
 }
 
-function oauthErrorHandler(error: unknown, _req: Request, res: Response, _next: NextFunction): void {
+function oauthErrorHandler(
+  _error: unknown,
+  _req: Request,
+  res: Response,
+  _next: NextFunction,
+): void {
   if (res.headersSent) {
     return;
   }
@@ -412,7 +432,10 @@ function oauthErrorHandler(error: unknown, _req: Request, res: Response, _next: 
 function renderAuthorizePage(params: AuthorizeParams, error?: string): string {
   const hiddenInputs = Object.entries(params)
     .filter((entry): entry is [string, string] => typeof entry[1] === "string")
-    .map(([key, value]) => `<input type="hidden" name="${escapeHtml(key)}" value="${escapeHtml(value)}" />`)
+    .map(
+      ([key, value]) =>
+        `<input type="hidden" name="${escapeHtml(key)}" value="${escapeHtml(value)}" />`,
+    )
     .join("\n");
 
   return `<!doctype html>
@@ -435,7 +458,8 @@ function renderAuthorizePage(params: AuthorizeParams, error?: string): string {
 
 function metadataAllowed(metadata: ClientMetadata): boolean {
   return (
-    (metadata.token_endpoint_auth_method === undefined || metadata.token_endpoint_auth_method === "none") &&
+    (metadata.token_endpoint_auth_method === undefined ||
+      metadata.token_endpoint_auth_method === "none") &&
     (metadata.grant_types === undefined || metadata.grant_types.includes("authorization_code")) &&
     (metadata.response_types === undefined || metadata.response_types.includes("code"))
   );
@@ -469,6 +493,18 @@ function secureEqual(actual: string, expected: string): boolean {
 
 function oauthError(error: string, errorDescription: string): Record<string, string> {
   return { error, error_description: errorDescription };
+}
+
+function ownerPassphraseFromBody(body: unknown): string {
+  if (!isRecord(body)) {
+    return "";
+  }
+  const value = body["owner_passphrase"];
+  return typeof value === "string" ? value : "";
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function stripHash(url: string): string {

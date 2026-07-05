@@ -33,13 +33,15 @@ describe("YNAB write command parsers", () => {
       }),
     ).toThrow("Provide either payee_id or payee_name, not both.");
 
-    expect(parseCreateTransactionCommand({
-      plan_id: "plan-1",
-      account_id: "account-1",
-      date: "2026-07-03",
-      amount: -12340,
-      payee_name: " Coffee Shop ",
-    }).transaction).toEqual({
+    expect(
+      parseCreateTransactionCommand({
+        plan_id: "plan-1",
+        account_id: "account-1",
+        date: "2026-07-03",
+        amount: -12340,
+        payee_name: " Coffee Shop ",
+      }).transaction,
+    ).toEqual({
       account_id: "account-1",
       date: "2026-07-03",
       amount: -12340,
@@ -48,17 +50,24 @@ describe("YNAB write command parsers", () => {
   });
 
   it("rejects empty transaction update commands", () => {
-    expect(() => parseUpdateTransactionCommand({ plan_id: "plan-1", transaction_id: "txn-1" })).toThrow(
-      "At least one transaction field must be provided to update.",
-    );
+    expect(() =>
+      parseUpdateTransactionCommand({ plan_id: "plan-1", transaction_id: "txn-1" }),
+    ).toThrow("At least one transaction field must be provided to update.");
   });
 
   it("keeps category goal invariants in the category command parser", () => {
     expect(() =>
-      parseUpdateCategoryCommand({ plan_id: "plan-1", category_id: "cat-1", goal_needs_whole_amount: true }),
+      parseUpdateCategoryCommand({
+        plan_id: "plan-1",
+        category_id: "cat-1",
+        goal_needs_whole_amount: true,
+      }),
     ).toThrow("goal_needs_whole_amount requires goal_target or goal_target_date.");
 
-    expect(parseUpdateCategoryCommand({ plan_id: "plan-1", category_id: "cat-1", goal_target: null }).category).toEqual({
+    expect(
+      parseUpdateCategoryCommand({ plan_id: "plan-1", category_id: "cat-1", goal_target: null })
+        .category,
+    ).toEqual({
       goal_target: null,
     });
   });

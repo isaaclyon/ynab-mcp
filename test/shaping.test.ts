@@ -1,5 +1,12 @@
 import { describe, expect, it } from "vitest";
-import { shapeAccounts, shapeCategories, shapeMonth, shapePlans, shapeScheduledTransactions, shapeTransactions } from "../src/tools/shaping.js";
+import {
+  shapeAccounts,
+  shapeCategories,
+  shapeMonth,
+  shapePlans,
+  shapeScheduledTransactions,
+  shapeTransactions,
+} from "../src/tools/shaping.js";
 import { YnabResponseShapeError } from "../src/tools/ynabResponseSchemas.js";
 import { accountIdSchema } from "../src/domain/ynabValues.js";
 
@@ -39,14 +46,39 @@ describe("YNAB response shaping", () => {
         {
           data: {
             accounts: [
-              { id: "checking", name: "Checking", type: "checking", on_budget: true, closed: false, balance: 1000, cleared_balance: 900, uncleared_balance: 100, deleted: false, ignored: true },
+              {
+                id: "checking",
+                name: "Checking",
+                type: "checking",
+                on_budget: true,
+                closed: false,
+                balance: 1000,
+                cleared_balance: 900,
+                uncleared_balance: 100,
+                deleted: false,
+                ignored: true,
+              },
               { id: "closed", name: "Closed", closed: true, balance: "not-a-number" },
             ],
           },
         },
         false,
       ),
-    ).toEqual({ accounts: [{ id: "checking", name: "Checking", type: "checking", on_budget: true, closed: false, balance: 1000, cleared_balance: 900, uncleared_balance: 100, deleted: false }] });
+    ).toEqual({
+      accounts: [
+        {
+          id: "checking",
+          name: "Checking",
+          type: "checking",
+          on_budget: true,
+          closed: false,
+          balance: 1000,
+          cleared_balance: 900,
+          uncleared_balance: 100,
+          deleted: false,
+        },
+      ],
+    });
   });
 
   it("preserves category group and category shaping", () => {
@@ -115,7 +147,17 @@ describe("YNAB response shaping", () => {
             to_be_budgeted: 0,
             age_of_money: 42,
             deleted: false,
-            categories: [{ id: "cat-1", category_group_id: "group-1", name: "Coffee", budgeted: 10000, activity: -5000, balance: 5000, deleted: false }],
+            categories: [
+              {
+                id: "cat-1",
+                category_group_id: "group-1",
+                name: "Coffee",
+                budgeted: 10000,
+                activity: -5000,
+                balance: 5000,
+                deleted: false,
+              },
+            ],
           },
         },
       }),
@@ -129,7 +171,17 @@ describe("YNAB response shaping", () => {
         to_be_budgeted: 0,
         age_of_money: 42,
         deleted: false,
-        categories: [{ id: "cat-1", category_group_id: "group-1", name: "Coffee", budgeted: 10000, activity: -5000, balance: 5000, deleted: false }],
+        categories: [
+          {
+            id: "cat-1",
+            category_group_id: "group-1",
+            name: "Coffee",
+            budgeted: 10000,
+            activity: -5000,
+            balance: 5000,
+            deleted: false,
+          },
+        ],
       },
     });
   });
@@ -163,7 +215,12 @@ describe("YNAB response shaping", () => {
                   },
                 ],
               },
-              { id: "txn-2", amount: "not-a-number", account_id: "account-2", account_name: "Savings" },
+              {
+                id: "txn-2",
+                amount: "not-a-number",
+                account_id: "account-2",
+                account_name: "Savings",
+              },
             ],
           },
         },
@@ -182,7 +239,15 @@ describe("YNAB response shaping", () => {
           category_id: "cat-1",
           category_name: "Coffee",
           deleted: false,
-          subtransactions: [{ id: "sub-1", transaction_id: "txn-1", amount: -12340, memo: null, category_id: "cat-1" }],
+          subtransactions: [
+            {
+              id: "sub-1",
+              transaction_id: "txn-1",
+              amount: -12340,
+              memo: null,
+              category_id: "cat-1",
+            },
+          ],
         },
       ],
     });
@@ -194,14 +259,35 @@ describe("YNAB response shaping", () => {
         {
           data: {
             scheduled_transactions: [
-              { id: "sched-1", date_next: "2026-08-01", amount: -1000, frequency: "monthly", account_id: "account-1", account_name: "Checking", deleted: false, ignored: true },
+              {
+                id: "sched-1",
+                date_next: "2026-08-01",
+                amount: -1000,
+                frequency: "monthly",
+                account_id: "account-1",
+                account_name: "Checking",
+                deleted: false,
+                ignored: true,
+              },
               { id: "sched-2", amount: -2000, frequency: "weekly" },
             ],
           },
         },
         1,
       ),
-    ).toEqual({ scheduled_transactions: [{ id: "sched-1", date_next: "2026-08-01", amount: -1000, frequency: "monthly", account_id: "account-1", account_name: "Checking", deleted: false }] });
+    ).toEqual({
+      scheduled_transactions: [
+        {
+          id: "sched-1",
+          date_next: "2026-08-01",
+          amount: -1000,
+          frequency: "monthly",
+          account_id: "account-1",
+          account_name: "Checking",
+          deleted: false,
+        },
+      ],
+    });
   });
 
   it("does not validate filtered-out or sliced-off list records", () => {
@@ -210,51 +296,129 @@ describe("YNAB response shaping", () => {
         {
           data: {
             accounts: [
-              { id: "open", name: "Open", type: "checking", on_budget: true, closed: false, balance: 1, cleared_balance: 1, uncleared_balance: 0, deleted: false },
+              {
+                id: "open",
+                name: "Open",
+                type: "checking",
+                on_budget: true,
+                closed: false,
+                balance: 1,
+                cleared_balance: 1,
+                uncleared_balance: 0,
+                deleted: false,
+              },
               { id: "closed", closed: true, balance: "not-a-number" },
             ],
           },
         },
         false,
       ),
-    ).toEqual({ accounts: [{ id: "open", name: "Open", type: "checking", on_budget: true, closed: false, balance: 1, cleared_balance: 1, uncleared_balance: 0, deleted: false }] });
+    ).toEqual({
+      accounts: [
+        {
+          id: "open",
+          name: "Open",
+          type: "checking",
+          on_budget: true,
+          closed: false,
+          balance: 1,
+          cleared_balance: 1,
+          uncleared_balance: 0,
+          deleted: false,
+        },
+      ],
+    });
 
     expect(
       shapeTransactions(
         {
           data: {
             transactions: [
-              { id: "txn-1", date: "2026-07-04", amount: -1, account_id: "account-1", account_name: "Checking", deleted: false },
-              { id: "txn-2", amount: "not-a-number", account_id: "account-2", account_name: "Savings" },
+              {
+                id: "txn-1",
+                date: "2026-07-04",
+                amount: -1,
+                account_id: "account-1",
+                account_name: "Checking",
+                deleted: false,
+              },
+              {
+                id: "txn-2",
+                amount: "not-a-number",
+                account_id: "account-2",
+                account_name: "Savings",
+              },
             ],
           },
         },
         { limit: 1 },
       ),
-    ).toEqual({ transactions: [{ id: "txn-1", date: "2026-07-04", amount: -1, account_id: "account-1", account_name: "Checking", deleted: false }] });
+    ).toEqual({
+      transactions: [
+        {
+          id: "txn-1",
+          date: "2026-07-04",
+          amount: -1,
+          account_id: "account-1",
+          account_name: "Checking",
+          deleted: false,
+        },
+      ],
+    });
   });
 
   it("rejects primitive or null list items that would be emitted", () => {
-    expect(() => shapeAccounts({ data: { accounts: [null] } }, false)).toThrow(YnabResponseShapeError);
-    expect(() => shapeTransactions({ data: { transactions: ["oops"] } }, { limit: 1 })).toThrow(YnabResponseShapeError);
-    expect(() => shapeScheduledTransactions({ data: { scheduled_transactions: [123] } }, 1)).toThrow(YnabResponseShapeError);
+    expect(() => shapeAccounts({ data: { accounts: [null] } }, false)).toThrow(
+      YnabResponseShapeError,
+    );
+    expect(() => shapeTransactions({ data: { transactions: ["oops"] } }, { limit: 1 })).toThrow(
+      YnabResponseShapeError,
+    );
+    expect(() =>
+      shapeScheduledTransactions({ data: { scheduled_transactions: [123] } }, 1),
+    ).toThrow(YnabResponseShapeError);
   });
 
   it("does not validate primitive transaction records excluded by filters or limits", () => {
-    expect(shapeTransactions({ data: { transactions: ["oops"] } }, { limit: 1, accountId: accountId("account-1") })).toEqual({ transactions: [] });
+    expect(
+      shapeTransactions(
+        { data: { transactions: ["oops"] } },
+        { limit: 1, accountId: accountId("account-1") },
+      ),
+    ).toEqual({ transactions: [] });
     expect(
       shapeScheduledTransactions(
         {
           data: {
             scheduled_transactions: [
-              { id: "sched-1", date_next: "2026-08-01", amount: -1000, frequency: "monthly", account_id: "account-1", account_name: "Checking", deleted: false },
+              {
+                id: "sched-1",
+                date_next: "2026-08-01",
+                amount: -1000,
+                frequency: "monthly",
+                account_id: "account-1",
+                account_name: "Checking",
+                deleted: false,
+              },
               null,
             ],
           },
         },
         1,
       ),
-    ).toEqual({ scheduled_transactions: [{ id: "sched-1", date_next: "2026-08-01", amount: -1000, frequency: "monthly", account_id: "account-1", account_name: "Checking", deleted: false }] });
+    ).toEqual({
+      scheduled_transactions: [
+        {
+          id: "sched-1",
+          date_next: "2026-08-01",
+          amount: -1000,
+          frequency: "monthly",
+          account_id: "account-1",
+          account_name: "Checking",
+          deleted: false,
+        },
+      ],
+    });
   });
 
   it("rejects missing response containers instead of silently returning empty output", () => {
@@ -266,7 +430,15 @@ describe("YNAB response shaping", () => {
     const secretResponse = {
       data: {
         transactions: [
-          { id: "txn-1", date: "2026-07-04", amount: "not-a-number", account_id: "account-1", account_name: "Checking", deleted: false, memo: "Authorization: Bearer secret-token" },
+          {
+            id: "txn-1",
+            date: "2026-07-04",
+            amount: "not-a-number",
+            account_id: "account-1",
+            account_name: "Checking",
+            deleted: false,
+            memo: "Authorization: Bearer secret-token",
+          },
         ],
       },
     };

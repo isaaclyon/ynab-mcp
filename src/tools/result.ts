@@ -30,6 +30,10 @@ type YnabErrorBody = {
   detail?: string;
 };
 
+type Compact<T extends Record<string, unknown>> = Partial<{
+  [Key in keyof T]: Exclude<T[Key], undefined>;
+}>;
+
 export function jsonResult(value: unknown): CallToolResult {
   return {
     content: [
@@ -91,31 +95,36 @@ function classifyYnabStatus(status: number): { code: YnabToolErrorCode; message:
   if (status === 400) {
     return {
       code: "ynab_bad_request",
-      message: "YNAB rejected the request as invalid. Check the tool input values and required fields before retrying.",
+      message:
+        "YNAB rejected the request as invalid. Check the tool input values and required fields before retrying.",
     };
   }
   if (status === 401) {
     return {
       code: "ynab_unauthorized",
-      message: "YNAB rejected the server-side credential. The server owner must update the configured YNAB access token before this can succeed.",
+      message:
+        "YNAB rejected the server-side credential. The server owner must update the configured YNAB access token before this can succeed.",
     };
   }
   if (status === 403) {
     return {
       code: "ynab_forbidden",
-      message: "YNAB denied access to the requested resource for the configured account. Confirm the plan and resource IDs are available to this YNAB account.",
+      message:
+        "YNAB denied access to the requested resource for the configured account. Confirm the plan and resource IDs are available to this YNAB account.",
     };
   }
   if (status === 404) {
     return {
       code: "ynab_not_found",
-      message: "YNAB could not find the requested resource. Re-list plans, accounts, categories, payees, or transactions and retry with a current ID.",
+      message:
+        "YNAB could not find the requested resource. Re-list plans, accounts, categories, payees, or transactions and retry with a current ID.",
     };
   }
   if (status === 409) {
     return {
       code: "ynab_conflict",
-      message: "YNAB reported a conflict. Refresh the resource, then retry only if the change is still appropriate.",
+      message:
+        "YNAB reported a conflict. Refresh the resource, then retry only if the change is still appropriate.",
     };
   }
   if (status === 429) {
@@ -137,21 +146,21 @@ function classifyYnabStatus(status: number): { code: YnabToolErrorCode; message:
 }
 
 function extractYnabErrorBody(body: unknown): YnabErrorBody {
-  const error = isRecord(body) ? body.error : undefined;
+  const error = isRecord(body) ? body["error"] : undefined;
   if (isRecord(error)) {
     return compact({
-      id: safeText(error.id),
-      name: safeText(error.name),
-      detail: safeText(error.detail),
+      id: safeText(error["id"]),
+      name: safeText(error["name"]),
+      detail: safeText(error["detail"]),
     });
   }
   if (typeof error === "string") {
-    return { detail: safeText(error) };
+    return compact({ detail: safeText(error) });
   }
   if (isRecord(body)) {
-    return compact({ detail: safeText(body.detail) });
+    return compact({ detail: safeText(body["detail"]) });
   }
-  return { detail: safeText(body) };
+  return compact({ detail: safeText(body) });
 }
 
 function safeText(value: unknown): string | undefined {
@@ -172,8 +181,10 @@ function redactSecrets(value: string): string {
     );
 }
 
-function compact<T extends Record<string, unknown>>(value: T): Partial<T> {
-  return Object.fromEntries(Object.entries(value).filter(([, entry]) => entry !== undefined)) as Partial<T>;
+function compact<T extends Record<string, unknown>>(value: T): Compact<T> {
+  return Object.fromEntries(
+    Object.entries(value).filter(([, entry]) => entry !== undefined),
+  ) as Compact<T>;
 }
 
 function isRecord(value: unknown): value is Record<string, unknown> {

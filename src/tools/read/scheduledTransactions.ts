@@ -10,12 +10,15 @@ export function registerScheduledTransactionReadTools(server: McpServer, ynab: Y
     "ynab_list_scheduled_transactions",
     {
       title: "List YNAB scheduled transactions",
-      description: "List scheduled transactions for a YNAB plan. Returns compact transaction-like records with scheduled transaction IDs.",
+      description:
+        "List scheduled transactions for a YNAB plan. Returns compact transaction-like records with scheduled transaction IDs.",
       inputSchema: { plan_id: planId, limit: resultLimit },
       annotations: { ...readOnlyAnnotations, title: "List YNAB scheduled transactions" },
     },
     ({ plan_id, limit }) =>
-      ynabResult(ynab.listScheduledTransactions(plan_id), (response) => shapeScheduledTransactions(response, limit)),
+      ynabResult(ynab.listScheduledTransactions(plan_id), (response) =>
+        shapeScheduledTransactions(response, limit),
+      ),
   );
 
   server.registerTool(
@@ -27,6 +30,9 @@ export function registerScheduledTransactionReadTools(server: McpServer, ynab: Y
       annotations: { ...readOnlyAnnotations, title: "Get YNAB scheduled transaction" },
     },
     ({ plan_id, scheduled_transaction_id }) =>
-      ynabResult(ynab.getScheduledTransaction(plan_id, scheduled_transaction_id), shapeScheduledTransaction),
+      ynabResult(
+        ynab.getScheduledTransaction(plan_id, scheduled_transaction_id),
+        shapeScheduledTransaction,
+      ),
   );
 }
