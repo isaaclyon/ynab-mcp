@@ -1,5 +1,29 @@
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { YnabApiError, YnabClient } from "../src/ynab/client.js";
+import {
+  accountIdSchema,
+  categoryGroupIdSchema,
+  categoryIdSchema,
+  isoDateSchema,
+  milliunitsSchema,
+  monthSchema,
+  payeeIdSchema,
+  planIdSchema,
+  scheduledTransactionIdSchema,
+  transactionIdSchema,
+} from "../src/domain/ynabValues.js";
+
+
+const planId = (value: string) => planIdSchema.parse(value);
+const accountId = (value: string) => accountIdSchema.parse(value);
+const categoryId = (value: string) => categoryIdSchema.parse(value);
+const categoryGroupId = (value: string) => categoryGroupIdSchema.parse(value);
+const payeeId = (value: string) => payeeIdSchema.parse(value);
+const transactionId = (value: string) => transactionIdSchema.parse(value);
+const scheduledTransactionId = (value: string) => scheduledTransactionIdSchema.parse(value);
+const month = (value: string) => monthSchema.parse(value);
+const isoDate = (value: string) => isoDateSchema.parse(value);
+const milliunits = (value: number) => milliunitsSchema.parse(value);
 
 function jsonResponse(body: unknown, init?: ResponseInit): Response {
   return new Response(JSON.stringify(body), {
@@ -22,7 +46,7 @@ describe("YnabClient", () => {
       fetchImpl,
     });
 
-    await client.listAccounts("plan-1");
+    await client.listAccounts(planId("plan-1"));
 
     expect(fetchImpl).toHaveBeenCalledOnce();
     const [url, init] = fetchImpl.mock.calls[0] ?? [];
@@ -39,7 +63,7 @@ describe("YnabClient", () => {
       fetchImpl,
     });
 
-    await client.listTransactions("plan-1", "2026-07-01");
+    await client.listTransactions(planId("plan-1"), isoDate("2026-07-01"));
 
     const [url] = fetchImpl.mock.calls[0] ?? [];
     expect(String(url)).toBe("https://api.ynab.test/v1/plans/plan-1/transactions?since_date=2026-07-01");
@@ -111,8 +135,8 @@ describe("YnabClient", () => {
       cache: { ttlMs: 60_000 },
     });
 
-    const first = await client.listAccounts("plan-1");
-    const second = await client.listAccounts("plan-1");
+    const first = await client.listAccounts(planId("plan-1"));
+    const second = await client.listAccounts(planId("plan-1"));
 
     expect(second).toBe(first);
     expect(fetchImpl).toHaveBeenCalledOnce();
@@ -168,9 +192,9 @@ describe("YnabClient", () => {
       cache: { ttlMs: 10 },
     });
 
-    await client.listAccounts("plan-1");
+    await client.listAccounts(planId("plan-1"));
     vi.advanceTimersByTime(11);
-    const refreshed = await client.listAccounts("plan-1");
+    const refreshed = await client.listAccounts(planId("plan-1"));
 
     expect(String(fetchImpl.mock.calls[1]?.[0])).toBe(
       "https://api.ynab.test/v1/plans/plan-1/accounts?last_knowledge_of_server=10",
@@ -228,9 +252,9 @@ describe("YnabClient", () => {
       cache: { ttlMs: 10 },
     });
 
-    await client.listAccounts("plan-1");
+    await client.listAccounts(planId("plan-1"));
     vi.advanceTimersByTime(11);
-    const refreshed = await client.listAccounts("plan-1");
+    const refreshed = await client.listAccounts(planId("plan-1"));
 
     expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
       "https://api.ynab.test/v1/plans/plan-1/accounts",
@@ -265,7 +289,7 @@ describe("YnabClient", () => {
         jsonResponse({
           data: {
             server_knowledge: 31,
-            transactions: [{ id: "txn-new", date: "2026-07-03", amount: -2000 }],
+            transactions: [{ id: "txn-new", date: isoDate("2026-07-03"), amount: -2000 }],
           },
         }),
       );
@@ -276,9 +300,9 @@ describe("YnabClient", () => {
       cache: { ttlMs: 10 },
     });
 
-    await client.listTransactions("plan-1", "2026-07-02");
+    await client.listTransactions(planId("plan-1"), isoDate("2026-07-02"));
     vi.advanceTimersByTime(11);
-    const refreshed = await client.listTransactions("plan-1", "2026-07-02");
+    const refreshed = await client.listTransactions(planId("plan-1"), isoDate("2026-07-02"));
 
     expect(String(fetchImpl.mock.calls[1]?.[0])).toBe(
       "https://api.ynab.test/v1/plans/plan-1/transactions?since_date=2026-07-02",
@@ -286,7 +310,7 @@ describe("YnabClient", () => {
     expect(refreshed).toEqual({
       data: {
         server_knowledge: 31,
-        transactions: [{ id: "txn-new", date: "2026-07-03", amount: -2000 }],
+        transactions: [{ id: "txn-new", date: isoDate("2026-07-03"), amount: -2000 }],
       },
     });
   });
@@ -360,9 +384,9 @@ describe("YnabClient", () => {
       cache: { ttlMs: 10 },
     });
 
-    await client.listCategories("plan-1");
+    await client.listCategories(planId("plan-1"));
     vi.advanceTimersByTime(11);
-    const refreshed = await client.listCategories("plan-1");
+    const refreshed = await client.listCategories(planId("plan-1"));
 
     expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
       "https://api.ynab.test/v1/plans/plan-1/categories",
@@ -404,9 +428,9 @@ describe("YnabClient", () => {
       cache: { ttlMs: 60_000 },
     });
 
-    await client.listPayees("plan-1");
-    await client.createPayee("plan-1", { name: "New Coffee" });
-    const refreshed = await client.listPayees("plan-1");
+    await client.listPayees(planId("plan-1"));
+    await client.createPayee(planId("plan-1"), { name: "New Coffee" });
+    const refreshed = await client.listPayees(planId("plan-1"));
 
     expect(fetchImpl).toHaveBeenCalledTimes(3);
     expect(refreshed).toEqual({ data: { payees: [{ id: "payee-2", name: "New Coffee" }] } });
@@ -420,11 +444,11 @@ describe("YnabClient", () => {
       fetchImpl,
     });
 
-    await client.createCategory("plan-1", {
-      category_group_id: "group-1",
+    await client.createCategory(planId("plan-1"), {
+      category_group_id: categoryGroupId("group-1"),
       name: "Coffee",
       note: "Monthly coffee target",
-      goal_target: 50000,
+      goal_target: milliunits(50000),
     });
 
     expect(fetchImpl).toHaveBeenCalledOnce();
@@ -433,7 +457,7 @@ describe("YnabClient", () => {
     expect(init?.method).toBe("POST");
     expect(init?.headers).toMatchObject({ "Content-Type": "application/json", Authorization: "Bearer secret-token" });
     expect(JSON.parse(String(init?.body))).toEqual({
-      category: { category_group_id: "group-1", name: "Coffee", note: "Monthly coffee target", goal_target: 50000 },
+      category: { category_group_id: categoryGroupId("group-1"), name: "Coffee", note: "Monthly coffee target", goal_target: 50000 },
     });
   });
 
@@ -446,7 +470,7 @@ describe("YnabClient", () => {
       fetchImpl,
     });
 
-    await client.createCategoryGroup("plan-1", { name: "Flexible" });
+    await client.createCategoryGroup(planId("plan-1"), { name: "Flexible" });
 
     const [url, init] = fetchImpl.mock.calls[0] ?? [];
     expect(String(url)).toBe("https://api.ynab.test/v1/plans/plan-1/category_groups");
@@ -462,8 +486,8 @@ describe("YnabClient", () => {
       fetchImpl,
     });
 
-    await client.updateCategoryGroup("plan-1", "group-1", { name: "Flexible" });
-    await client.updateCategory("plan-1", "cat-1", { name: "Coffee Beans", note: null });
+    await client.updateCategoryGroup(planId("plan-1"), categoryGroupId("group-1"), { name: "Flexible" });
+    await client.updateCategory(planId("plan-1"), categoryId("cat-1"), { name: "Coffee Beans", note: null });
 
     expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
       "https://api.ynab.test/v1/plans/plan-1/category_groups/group-1",
@@ -481,12 +505,12 @@ describe("YnabClient", () => {
       fetchImpl,
     });
 
-    await client.createTransaction("plan-1", {
-      account_id: "account-1",
-      date: "2026-07-03",
-      amount: -12340,
+    await client.createTransaction(planId("plan-1"), {
+      account_id: accountId("account-1"),
+      date: isoDate("2026-07-03"),
+      amount: milliunits(-12340),
       payee_name: "Coffee Shop",
-      category_id: "cat-1",
+      category_id: categoryId("cat-1"),
       memo: "Beans",
       cleared: "cleared",
       approved: true,
@@ -500,11 +524,11 @@ describe("YnabClient", () => {
     expect(init?.headers).toMatchObject({ "Content-Type": "application/json", Authorization: "Bearer secret-token" });
     expect(JSON.parse(String(init?.body))).toEqual({
       transaction: {
-        account_id: "account-1",
-        date: "2026-07-03",
-        amount: -12340,
+        account_id: accountId("account-1"),
+        date: isoDate("2026-07-03"),
+        amount: milliunits(-12340),
         payee_name: "Coffee Shop",
-        category_id: "cat-1",
+        category_id: categoryId("cat-1"),
         memo: "Beans",
         cleared: "cleared",
         approved: true,
@@ -522,7 +546,7 @@ describe("YnabClient", () => {
       fetchImpl,
     });
 
-    await client.updateTransaction("plan-1", "txn-1", { memo: null, approved: false, category_id: null });
+    await client.updateTransaction(planId("plan-1"), transactionId("txn-1"), { memo: null, approved: false, category_id: null });
 
     const [url, init] = fetchImpl.mock.calls[0] ?? [];
     expect(String(url)).toBe("https://api.ynab.test/v1/plans/plan-1/transactions/txn-1");
@@ -538,11 +562,11 @@ describe("YnabClient", () => {
       fetchImpl,
     });
 
-    await client.listCategoryTransactions("plan-1", "cat-1");
-    await client.listAccountTransactions("plan-1", "account-1");
-    await client.listPayeeTransactions("plan-1", "payee-1");
-    await client.listMonthTransactions("plan-1", "2026-07");
-    await client.deleteTransaction("plan-1", "txn-1");
+    await client.listCategoryTransactions(planId("plan-1"), categoryId("cat-1"));
+    await client.listAccountTransactions(planId("plan-1"), accountId("account-1"));
+    await client.listPayeeTransactions(planId("plan-1"), payeeId("payee-1"));
+    await client.listMonthTransactions(planId("plan-1"), month("2026-07"));
+    await client.deleteTransaction(planId("plan-1"), transactionId("txn-1"));
 
     expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
       "https://api.ynab.test/v1/plans/plan-1/categories/cat-1/transactions",
@@ -563,10 +587,10 @@ describe("YnabClient", () => {
       fetchImpl,
     });
 
-    await client.listMonths("plan-1");
-    await client.getMonth("plan-1", "2026-07");
-    await client.getMonthCategory("plan-1", "2026-07", "cat-1");
-    await client.updateMonthCategory("plan-1", "2026-07", "cat-1", { budgeted: 25000 });
+    await client.listMonths(planId("plan-1"));
+    await client.getMonth(planId("plan-1"), month("2026-07"));
+    await client.getMonthCategory(planId("plan-1"), month("2026-07"), categoryId("cat-1"));
+    await client.updateMonthCategory(planId("plan-1"), month("2026-07"), categoryId("cat-1"), { budgeted: milliunits(25000) });
 
     expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
       "https://api.ynab.test/v1/plans/plan-1/months",
@@ -575,7 +599,7 @@ describe("YnabClient", () => {
       "https://api.ynab.test/v1/plans/plan-1/months/2026-07-01/categories/cat-1",
     ]);
     expect(fetchImpl.mock.calls.map(([, init]) => init?.method)).toEqual(["GET", "GET", "GET", "PATCH"]);
-    expect(JSON.parse(String(fetchImpl.mock.calls[3]?.[1]?.body))).toEqual({ category: { budgeted: 25000 } });
+    expect(JSON.parse(String(fetchImpl.mock.calls[3]?.[1]?.body))).toEqual({ category: { budgeted: milliunits(25000) } });
   });
 
   it("builds payee CRUD requests", async () => {
@@ -586,10 +610,10 @@ describe("YnabClient", () => {
       fetchImpl,
     });
 
-    await client.listPayees("plan-1");
-    await client.createPayee("plan-1", { name: "Coffee Shop" });
-    await client.getPayee("plan-1", "payee-1");
-    await client.updatePayee("plan-1", "payee-1", { name: "Coffee Roaster" });
+    await client.listPayees(planId("plan-1"));
+    await client.createPayee(planId("plan-1"), { name: "Coffee Shop" });
+    await client.getPayee(planId("plan-1"), payeeId("payee-1"));
+    await client.updatePayee(planId("plan-1"), payeeId("payee-1"), { name: "Coffee Roaster" });
 
     expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
       "https://api.ynab.test/v1/plans/plan-1/payees",
@@ -610,20 +634,20 @@ describe("YnabClient", () => {
       fetchImpl,
     });
 
-    await client.listScheduledTransactions("plan-1");
-    await client.createScheduledTransaction("plan-1", {
-      account_id: "account-1",
-      date: "2026-07-15",
-      amount: -12340,
+    await client.listScheduledTransactions(planId("plan-1"));
+    await client.createScheduledTransaction(planId("plan-1"), {
+      account_id: accountId("account-1"),
+      date: isoDate("2026-07-15"),
+      amount: milliunits(-12340),
       frequency: "monthly",
       payee_name: "Coffee Shop",
-      category_id: "cat-1",
+      category_id: categoryId("cat-1"),
       memo: "Beans",
       flag_color: "green",
     });
-    await client.getScheduledTransaction("plan-1", "sched-1");
-    await client.updateScheduledTransaction("plan-1", "sched-1", { memo: null, frequency: "weekly" });
-    await client.deleteScheduledTransaction("plan-1", "sched-1");
+    await client.getScheduledTransaction(planId("plan-1"), scheduledTransactionId("sched-1"));
+    await client.updateScheduledTransaction(planId("plan-1"), scheduledTransactionId("sched-1"), { memo: null, frequency: "weekly" });
+    await client.deleteScheduledTransaction(planId("plan-1"), scheduledTransactionId("sched-1"));
 
     expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
       "https://api.ynab.test/v1/plans/plan-1/scheduled_transactions",
@@ -635,12 +659,12 @@ describe("YnabClient", () => {
     expect(fetchImpl.mock.calls.map(([, init]) => init?.method)).toEqual(["GET", "POST", "GET", "PUT", "DELETE"]);
     expect(JSON.parse(String(fetchImpl.mock.calls[1]?.[1]?.body))).toEqual({
       scheduled_transaction: {
-        account_id: "account-1",
-        date: "2026-07-15",
-        amount: -12340,
+        account_id: accountId("account-1"),
+        date: isoDate("2026-07-15"),
+        amount: milliunits(-12340),
         frequency: "monthly",
         payee_name: "Coffee Shop",
-        category_id: "cat-1",
+        category_id: categoryId("cat-1"),
         memo: "Beans",
         flag_color: "green",
       },

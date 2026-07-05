@@ -1,11 +1,15 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { YnabClient } from "../../ynab/client.js";
+import {
+  parseCreateScheduledTransactionCommand,
+  parseDeleteScheduledTransactionCommand,
+  parseUpdateScheduledTransactionCommand,
+} from "../../domain/ynabCommands.js";
 import { createAnnotations, deleteAnnotations, updateAnnotations } from "../annotations.js";
 import { ynabResult } from "../result.js";
-import { accountId, categoryId, isoDate, planId, writePayeeId, writeScheduledTransactionId } from "../schemas.js";
+import { accountId, categoryId, isoDate, milliunits, planId, writePayeeId, writeScheduledTransactionId } from "../schemas.js";
 import { shapeScheduledTransactionWrite } from "../shaping.js";
-import { compact, validatePayeeFields } from "./helpers.js";
 
 const nullableMemo = z.string().max(500).nullable().optional().describe("Transaction memo. Pass null to clear an existing memo.");
 const payeeId = writePayeeId.optional().describe("Existing YNAB payee ID. Do not provide with payee_name.");
@@ -40,7 +44,7 @@ const scheduledTransactionFrequency = z
 const scheduledTransactionCreateFields = {
   account_id: accountId,
   date: isoDate,
-  amount: z.number().int().describe("Scheduled transaction amount in YNAB milliunits. Outflows are negative; inflows are positive."),
+  amount: milliunits.describe("Scheduled transaction amount in YNAB milliunits. Outflows are negative; inflows are positive."),
   frequency: scheduledTransactionFrequency,
   payee_id: payeeId,
   payee_name: payeeName,
@@ -51,7 +55,7 @@ const scheduledTransactionCreateFields = {
 const scheduledTransactionUpdateFields = {
   account_id: accountId.optional(),
   date: isoDate.optional(),
-  amount: z.number().int().optional().describe("Scheduled transaction amount in YNAB milliunits. Outflows are negative; inflows are positive."),
+  amount: milliunits.optional().describe("Scheduled transaction amount in YNAB milliunits. Outflows are negative; inflows are positive."),
   frequency: scheduledTransactionFrequency.optional(),
   payee_id: payeeId,
   payee_name: payeeName,
@@ -70,15 +74,9 @@ export function registerScheduledTransactionWriteTools(server: McpServer, ynab: 
       inputSchema: { plan_id: planId, ...scheduledTransactionCreateFields },
       annotations: { ...createAnnotations, title: "Create YNAB scheduled transaction" },
     },
-    async ({ plan_id, account_id, date, amount, frequency, payee_id, payee_name, category_id, memo, flag_color }) => {
-      validatePayeeFields(payee_id, payee_name);
-      return ynabResult(
-        ynab.createScheduledTransaction(
-          plan_id,
-          { account_id, date, amount, frequency, ...compact({ payee_id, payee_name, category_id, memo, flag_color }) },
-        ),
-        shapeScheduledTransactionWrite,
-      );
+    (args) => {
+      const command = parseCreateScheduledTransactionCommand(args);
+      return ynabResult(ynab.createScheduledTransaction(command.planId, command.scheduledTransaction), shapeScheduledTransactionWrite);
     },
   );
 
@@ -90,14 +88,10 @@ export function registerScheduledTransactionWriteTools(server: McpServer, ynab: 
       inputSchema: { plan_id: planId, scheduled_transaction_id: writeScheduledTransactionId, ...scheduledTransactionUpdateFields },
       annotations: { ...updateAnnotations, title: "Update YNAB scheduled transaction" },
     },
-    async ({ plan_id, scheduled_transaction_id, account_id, date, amount, frequency, payee_id, payee_name, category_id, memo, flag_color }) => {
-      validatePayeeFields(payee_id, payee_name);
-      const scheduledTransaction = compact({ account_id, date, amount, frequency, payee_id, payee_name, category_id, memo, flag_color });
-      if (Object.keys(scheduledTransaction).length === 0) {
-        throw new Error("At least one scheduled transaction field must be provided to update.");
-      }
+    (args) => {
+      const command = parseUpdateScheduledTransactionCommand(args);
       return ynabResult(
-        ynab.updateScheduledTransaction(plan_id, scheduled_transaction_id, scheduledTransaction),
+        ynab.updateScheduledTransaction(command.planId, command.scheduledTransactionId, command.scheduledTransaction),
         shapeScheduledTransactionWrite,
       );
     },
@@ -111,7 +105,9 @@ export function registerScheduledTransactionWriteTools(server: McpServer, ynab: 
       inputSchema: { plan_id: planId, scheduled_transaction_id: writeScheduledTransactionId },
       annotations: { ...deleteAnnotations, title: "Delete YNAB scheduled transaction" },
     },
-    ({ plan_id, scheduled_transaction_id }) =>
-      ynabResult(ynab.deleteScheduledTransaction(plan_id, scheduled_transaction_id), shapeScheduledTransactionWrite),
+    (args) => {
+      const command = parseDeleteScheduledTransactionCommand(args);
+      return ynabResult(ynab.deleteScheduledTransaction(command.planId, command.scheduledTransactionId), shapeScheduledTransactionWrite);
+    },
   );
 }
