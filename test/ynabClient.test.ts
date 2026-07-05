@@ -32,6 +32,14 @@ function jsonResponse(body: unknown, init?: ResponseInit): Response {
   });
 }
 
+function textResponse(body: string, init?: ResponseInit): Response {
+  return new Response(body, {
+    status: 200,
+    headers: { "content-type": "application/json" },
+    ...init,
+  });
+}
+
 describe("YnabClient", () => {
   afterEach(() => {
     vi.useRealTimers();
@@ -136,6 +144,86 @@ describe("YnabClient", () => {
       name: "YnabApiError",
       status: 429,
       retryAfterSeconds: 30,
+    } satisfies Partial<YnabApiError>);
+  });
+
+  it("captures past retry-after HTTP dates as immediately retryable", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-03T00:01:00.000Z"));
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+      jsonResponse(
+        { error: { detail: "slow down" } },
+        {
+          status: 429,
+          headers: { "retry-after": new Date("2026-07-03T00:00:30.000Z").toUTCString() },
+        },
+      ),
+    );
+    const client = new YnabClient({
+      baseUrl: new URL("https://api.ynab.test/v1"),
+      accessToken: "secret-token",
+      fetchImpl,
+    });
+
+    await expect(client.listPlans()).rejects.toMatchObject({
+      name: "YnabApiError",
+      status: 429,
+      retryAfterSeconds: 0,
+    } satisfies Partial<YnabApiError>);
+  });
+
+  it.each(["", " ", "\t", "eventually", "-1"])(
+    "omits retry-after guidance for unusable upstream value %j",
+    async (retryAfter) => {
+      const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(
+        jsonResponse(
+          { error: { detail: "slow down" } },
+          { status: 429, headers: { "retry-after": retryAfter } },
+        ),
+      );
+      const client = new YnabClient({
+        baseUrl: new URL("https://api.ynab.test/v1"),
+        accessToken: "secret-token",
+        fetchImpl,
+      });
+
+      await expect(client.listPlans()).rejects.toMatchObject({
+        name: "YnabApiError",
+        status: 429,
+        retryAfterSeconds: undefined,
+      } satisfies Partial<YnabApiError>);
+    },
+  );
+
+  it("preserves invalid JSON upstream error bodies for structured tool handling", async () => {
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValue(textResponse("not-json", { status: 502 }));
+    const client = new YnabClient({
+      baseUrl: new URL("https://api.ynab.test/v1"),
+      accessToken: "secret-token",
+      fetchImpl,
+    });
+
+    await expect(client.listPlans()).rejects.toMatchObject({
+      name: "YnabApiError",
+      status: 502,
+      body: "not-json",
+    } satisfies Partial<YnabApiError>);
+  });
+
+  it("preserves empty upstream error bodies as null", async () => {
+    const fetchImpl = vi.fn<typeof fetch>().mockResolvedValue(textResponse("", { status: 503 }));
+    const client = new YnabClient({
+      baseUrl: new URL("https://api.ynab.test/v1"),
+      accessToken: "secret-token",
+      fetchImpl,
+    });
+
+    await expect(client.listPlans()).rejects.toMatchObject({
+      name: "YnabApiError",
+      status: 503,
+      body: null,
     } satisfies Partial<YnabApiError>);
   });
 
@@ -285,6 +373,52 @@ describe("YnabClient", () => {
           { id: "account-2", name: "Renamed Savings", balance: 2500 },
           { id: "account-1", name: "Checking", balance: 0 },
         ],
+      },
+    });
+  });
+
+  it("full-refreshes delta-supported reads when the delta response is malformed", async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-07-03T00:00:00.000Z"));
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: {
+            server_knowledge: 10,
+            accounts: [{ id: "account-1", name: "Checking", balance: 0 }],
+          },
+        }),
+      )
+      .mockResolvedValueOnce(jsonResponse({ unexpected: "shape" }))
+      .mockResolvedValueOnce(
+        jsonResponse({
+          data: {
+            server_knowledge: 11,
+            accounts: [{ id: "account-1", name: "Checking", balance: 1000 }],
+          },
+        }),
+      );
+    const client = new YnabClient({
+      baseUrl: new URL("https://api.ynab.test/v1"),
+      accessToken: "secret-token",
+      fetchImpl,
+      cache: { ttlMs: 10 },
+    });
+
+    await client.listAccounts(planId("plan-1"));
+    vi.advanceTimersByTime(11);
+    const refreshed = await client.listAccounts(planId("plan-1"));
+
+    expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
+      "https://api.ynab.test/v1/plans/plan-1/accounts",
+      "https://api.ynab.test/v1/plans/plan-1/accounts?last_knowledge_of_server=10",
+      "https://api.ynab.test/v1/plans/plan-1/accounts",
+    ]);
+    expect(refreshed).toEqual({
+      data: {
+        server_knowledge: 11,
+        accounts: [{ id: "account-1", name: "Checking", balance: 1000 }],
       },
     });
   });
@@ -456,6 +590,47 @@ describe("YnabClient", () => {
     const refreshed = await client.listPayees(planId("plan-1"));
 
     expect(fetchImpl).toHaveBeenCalledTimes(3);
+    expect(refreshed).toEqual({ data: { payees: [{ id: "payee-2", name: "New Coffee" }] } });
+  });
+
+  it("does not cache an in-flight read that resolves after a write invalidates the cache", async () => {
+    let resolveStaleRead: (response: Response) => void = () => {};
+    const staleRead = new Promise<Response>((resolve) => {
+      resolveStaleRead = resolve;
+    });
+    const fetchImpl = vi
+      .fn<typeof fetch>()
+      .mockImplementationOnce(async () => staleRead)
+      .mockResolvedValueOnce(
+        jsonResponse({ data: { payee: { id: "payee-2", name: "New Coffee" } } }, { status: 201 }),
+      )
+      .mockResolvedValueOnce(
+        jsonResponse({ data: { payees: [{ id: "payee-2", name: "New Coffee" }] } }),
+      );
+    const client = new YnabClient({
+      baseUrl: new URL("https://api.ynab.test/v1"),
+      accessToken: "secret-token",
+      fetchImpl,
+      cache: { ttlMs: 60_000 },
+    });
+
+    const firstRead = client.listPayees(planId("plan-1"));
+    await vi.waitFor(() => expect(fetchImpl).toHaveBeenCalledTimes(1));
+    await client.createPayee(planId("plan-1"), { name: "New Coffee" });
+    resolveStaleRead(jsonResponse({ data: { payees: [{ id: "payee-1", name: "Old Coffee" }] } }));
+
+    await expect(firstRead).resolves.toEqual({
+      data: { payees: [{ id: "payee-1", name: "Old Coffee" }] },
+    });
+    const refreshed = await client.listPayees(planId("plan-1"));
+
+    expect(fetchImpl).toHaveBeenCalledTimes(3);
+    expect(fetchImpl.mock.calls.map(([url]) => String(url))).toEqual([
+      "https://api.ynab.test/v1/plans/plan-1/payees",
+      "https://api.ynab.test/v1/plans/plan-1/payees",
+      "https://api.ynab.test/v1/plans/plan-1/payees",
+    ]);
+    expect(fetchImpl.mock.calls[1]?.[1]?.method).toBe("POST");
     expect(refreshed).toEqual({ data: { payees: [{ id: "payee-2", name: "New Coffee" }] } });
   });
 

@@ -54,7 +54,7 @@ YNAB API (`https://api.ynab.com/v1`)
 - Read tools must not call write endpoints.
 - Write tools must not be exposed through a generic read/write executor.
 - Cross-cutting concerns enter through configuration, auth middleware, and shared result/error helpers.
-- The shared tool result seam converts `YnabApiError` into sanitized MCP tool errors; non-YNAB programming or validation errors still use the MCP SDK's normal tool-error path.
+- The shared tool result seam converts `YnabApiError` and unexpected YNAB response-shape failures into sanitized MCP tool errors; non-YNAB programming or validation errors still use the MCP SDK's normal tool-error path.
 - Read-through cache and delta request behavior live behind the YNAB client boundary; tool modules receive normal shaped data and do not manage `server_knowledge`.
 
 ## Stable invariants
@@ -72,6 +72,7 @@ YNAB API (`https://api.ynab.com/v1`)
 - Tool shaping validates key upstream response slices before compact projection, while the YNAB client boundary still treats external response bodies as `unknown`.
 - Internal tool/client calls use parsed domain values and command payloads for repeated YNAB concepts such as plan IDs, category IDs, payee IDs, transaction IDs, months, ISO dates, and milliunits; raw transport primitives should not be passed deeper once parsed.
 - Expected YNAB API failures should be returned as structured MCP tool errors with safe status/code/message fields, not as opaque internal failures.
+- Unexpected successful YNAB response shapes should be returned as structured MCP tool errors with safe labels and issue paths, not raw upstream response bodies.
 - The project uses `plans`, not `budgets`, in new user-facing schemas and docs.
 - The YNAB client may cache successful read-only `GET` responses briefly, deduplicate in-flight reads, and clear cached reads after successful writes.
 - YNAB delta request `server_knowledge` is internal client state and is not exposed as normal MCP tool input.

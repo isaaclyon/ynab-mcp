@@ -1,10 +1,11 @@
 import type { CallToolResult } from "@modelcontextprotocol/sdk/types.js";
 import { YnabApiError } from "../ynab/client.js";
+import { YnabResponseShapeError } from "./ynabResponseSchemas.js";
 
 type YnabToolErrorPayload = {
   error: {
     source: "ynab";
-    code: YnabToolErrorCode;
+    code: YnabApiErrorCode;
     status: number;
     message: string;
     detail?: string;
@@ -14,7 +15,19 @@ type YnabToolErrorPayload = {
   };
 };
 
-type YnabToolErrorCode =
+type YnabResponseShapeErrorPayload = {
+  error: {
+    source: "ynab";
+    code: "ynab_unexpected_response";
+    message: string;
+    response_label: string;
+    issue_paths: string[];
+  };
+};
+
+type YnabStructuredErrorPayload = YnabToolErrorPayload | YnabResponseShapeErrorPayload;
+
+type YnabApiErrorCode =
   | "ynab_bad_request"
   | "ynab_unauthorized"
   | "ynab_forbidden"
@@ -55,8 +68,26 @@ export async function ynabResult(
     if (error instanceof YnabApiError) {
       return jsonErrorResult(ynabApiErrorPayload(error));
     }
+    if (error instanceof YnabResponseShapeError) {
+      return jsonErrorResult(ynabResponseShapeErrorPayload(error));
+    }
     throw error;
   }
+}
+
+function ynabResponseShapeErrorPayload(
+  error: YnabResponseShapeError,
+): YnabResponseShapeErrorPayload {
+  return {
+    error: {
+      source: "ynab",
+      code: "ynab_unexpected_response",
+      message:
+        "YNAB returned an unexpected response shape. The server owner should update this connector before retrying.",
+      response_label: error.label,
+      issue_paths: error.issuePaths,
+    },
+  };
 }
 
 export function ynabApiErrorPayload(error: YnabApiError): YnabToolErrorPayload {
@@ -78,7 +109,7 @@ export function ynabApiErrorPayload(error: YnabApiError): YnabToolErrorPayload {
   };
 }
 
-function jsonErrorResult(value: YnabToolErrorPayload): CallToolResult {
+function jsonErrorResult(value: YnabStructuredErrorPayload): CallToolResult {
   return {
     content: [
       {
@@ -91,7 +122,7 @@ function jsonErrorResult(value: YnabToolErrorPayload): CallToolResult {
   };
 }
 
-function classifyYnabStatus(status: number): { code: YnabToolErrorCode; message: string } {
+function classifyYnabStatus(status: number): { code: YnabApiErrorCode; message: string } {
   if (status === 400) {
     return {
       code: "ynab_bad_request",
