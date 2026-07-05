@@ -152,6 +152,23 @@ describe("MCP smoke", () => {
       idempotentHint: false,
       openWorldHint: true,
     });
+    expect(tools.tools.find((tool) => tool.name === "ynab_get_month")?.inputSchema).toMatchObject({
+      properties: {
+        plan_id: { type: "string", minLength: 1 },
+        month: { type: "string", pattern: "^\\d{4}-(0[1-9]|1[0-2])$" },
+      },
+      required: ["plan_id", "month"],
+    });
+    expect(tools.tools.find((tool) => tool.name === "ynab_create_transaction")?.inputSchema).toMatchObject({
+      properties: {
+        plan_id: { type: "string", minLength: 1 },
+        account_id: { type: "string", minLength: 1 },
+        date: { type: "string", pattern: "^\\d{4}-\\d{2}-\\d{2}$" },
+        amount: { type: "integer" },
+        category_id: { anyOf: expect.arrayContaining([{ type: "null" }]) },
+      },
+      required: ["plan_id", "account_id", "date", "amount"],
+    });
 
     const result = await client.callTool({ name: "ynab_list_plans", arguments: {} }, CallToolResultSchema);
     const text = firstText(result);

@@ -1,11 +1,15 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { YnabClient } from "../../ynab/client.js";
+import {
+  parseCreateTransactionCommand,
+  parseDeleteTransactionCommand,
+  parseUpdateTransactionCommand,
+} from "../../domain/ynabCommands.js";
 import { createAnnotations, deleteAnnotations, updateAnnotations } from "../annotations.js";
 import { ynabResult } from "../result.js";
-import { accountId, categoryId, isoDate, planId, writePayeeId, writeTransactionId } from "../schemas.js";
+import { accountId, categoryId, isoDate, milliunits, planId, writePayeeId, writeTransactionId } from "../schemas.js";
 import { shapeTransactionWrite } from "../shaping.js";
-import { compact, validatePayeeFields } from "./helpers.js";
 
 const nullableMemo = z.string().max(500).nullable().optional().describe("Transaction memo. Pass null to clear an existing memo.");
 const payeeId = writePayeeId.optional().describe("Existing YNAB payee ID. Do not provide with payee_name.");
@@ -30,7 +34,7 @@ const importId = z
 const transactionCreateFields = {
   account_id: accountId,
   date: isoDate,
-  amount: z.number().int().describe("Transaction amount in YNAB milliunits. Outflows are negative; inflows are positive."),
+  amount: milliunits.describe("Transaction amount in YNAB milliunits. Outflows are negative; inflows are positive."),
   payee_id: payeeId,
   payee_name: payeeName,
   category_id: nullableTransactionCategoryId,
@@ -43,7 +47,7 @@ const transactionCreateFields = {
 const transactionUpdateFields = {
   account_id: accountId.optional(),
   date: isoDate.optional(),
-  amount: z.number().int().optional().describe("Transaction amount in YNAB milliunits. Outflows are negative; inflows are positive."),
+  amount: milliunits.optional().describe("Transaction amount in YNAB milliunits. Outflows are negative; inflows are positive."),
   payee_id: payeeId,
   payee_name: payeeName,
   category_id: nullableTransactionCategoryId,
@@ -63,20 +67,9 @@ export function registerTransactionWriteTools(server: McpServer, ynab: YnabClien
       inputSchema: { plan_id: planId, ...transactionCreateFields },
       annotations: { ...createAnnotations, title: "Create YNAB transaction" },
     },
-    async ({ plan_id, account_id, date, amount, payee_id, payee_name, category_id, memo, cleared, approved, flag_color, import_id }) => {
-      validatePayeeFields(payee_id, payee_name);
-      return ynabResult(
-        ynab.createTransaction(
-          plan_id,
-          {
-            account_id,
-            date,
-            amount,
-            ...compact({ payee_id, payee_name, category_id, memo, cleared, approved, flag_color, import_id }),
-          },
-        ),
-        shapeTransactionWrite,
-      );
+    (args) => {
+      const command = parseCreateTransactionCommand(args);
+      return ynabResult(ynab.createTransaction(command.planId, command.transaction), shapeTransactionWrite);
     },
   );
 
@@ -88,13 +81,9 @@ export function registerTransactionWriteTools(server: McpServer, ynab: YnabClien
       inputSchema: { plan_id: planId, transaction_id: writeTransactionId, ...transactionUpdateFields },
       annotations: { ...updateAnnotations, title: "Update YNAB transaction" },
     },
-    async ({ plan_id, transaction_id, account_id, date, amount, payee_id, payee_name, category_id, memo, cleared, approved, flag_color }) => {
-      validatePayeeFields(payee_id, payee_name);
-      const transaction = compact({ account_id, date, amount, payee_id, payee_name, category_id, memo, cleared, approved, flag_color });
-      if (Object.keys(transaction).length === 0) {
-        throw new Error("At least one transaction field must be provided to update.");
-      }
-      return ynabResult(ynab.updateTransaction(plan_id, transaction_id, transaction), shapeTransactionWrite);
+    (args) => {
+      const command = parseUpdateTransactionCommand(args);
+      return ynabResult(ynab.updateTransaction(command.planId, command.transactionId, command.transaction), shapeTransactionWrite);
     },
   );
 
@@ -106,7 +95,9 @@ export function registerTransactionWriteTools(server: McpServer, ynab: YnabClien
       inputSchema: { plan_id: planId, transaction_id: writeTransactionId },
       annotations: { ...deleteAnnotations, title: "Delete YNAB transaction" },
     },
-    ({ plan_id, transaction_id }) =>
-      ynabResult(ynab.deleteTransaction(plan_id, transaction_id), shapeTransactionWrite),
+    (args) => {
+      const command = parseDeleteTransactionCommand(args);
+      return ynabResult(ynab.deleteTransaction(command.planId, command.transactionId), shapeTransactionWrite);
+    },
   );
 }

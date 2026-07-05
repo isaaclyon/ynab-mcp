@@ -1,6 +1,9 @@
 import { describe, expect, it } from "vitest";
 import { shapeAccounts, shapeCategories, shapeMonth, shapePlans, shapeScheduledTransactions, shapeTransactions } from "../src/tools/shaping.js";
 import { YnabResponseShapeError } from "../src/tools/ynabResponseSchemas.js";
+import { accountIdSchema } from "../src/domain/ynabValues.js";
+
+const accountId = (value: string) => accountIdSchema.parse(value);
 
 describe("YNAB response shaping", () => {
   it("preserves compact valid plan output while ignoring extra upstream fields", () => {
@@ -60,6 +63,7 @@ describe("YNAB response shaping", () => {
                 {
                   id: "cat-1",
                   category_group_id: "group-1",
+                  original_category_group_id: null,
                   name: "Rent",
                   note: null,
                   budgeted: 1000000,
@@ -84,6 +88,7 @@ describe("YNAB response shaping", () => {
             {
               id: "cat-1",
               category_group_id: "group-1",
+              original_category_group_id: null,
               name: "Rent",
               note: null,
               budgeted: 1000000,
@@ -236,7 +241,7 @@ describe("YNAB response shaping", () => {
   });
 
   it("does not validate primitive transaction records excluded by filters or limits", () => {
-    expect(shapeTransactions({ data: { transactions: ["oops"] } }, { limit: 1, accountId: "account-1" })).toEqual({ transactions: [] });
+    expect(shapeTransactions({ data: { transactions: ["oops"] } }, { limit: 1, accountId: accountId("account-1") })).toEqual({ transactions: [] });
     expect(
       shapeScheduledTransactions(
         {

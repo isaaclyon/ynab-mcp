@@ -20,17 +20,31 @@ import {
   transactionsContainerSchema,
   transactionSchema,
 } from "./ynabResponseSchemas.js";
+import type { AccountId, CategoryId } from "../domain/ynabValues.js";
 
-type JsonRecord = Record<string, unknown>;
+export type JsonRecord = Record<string, unknown>;
+export type PlansResult = { plans: JsonRecord[] };
+export type AccountsResult = { accounts: JsonRecord[] };
+export type CategoryResult = { category: JsonRecord };
+export type CategoryGroupResult = { category_group: JsonRecord };
+export type CategoriesResult = { category_groups: Array<JsonRecord & { categories: JsonRecord[] }> };
+export type PayeesResult = { payees: JsonRecord[] };
+export type PayeeResult = { payee: JsonRecord };
+export type MonthResult = { month: JsonRecord & { categories: JsonRecord[] } };
+export type MonthsResult = { months: JsonRecord[] };
+export type TransactionsResult = { transactions: JsonRecord[] };
+export type TransactionResult = { transaction: JsonRecord };
+export type ScheduledTransactionsResult = { scheduled_transactions: JsonRecord[] };
+export type ScheduledTransactionResult = { scheduled_transaction: JsonRecord };
 
-export function shapePlans(response: unknown): unknown {
+export function shapePlans(response: unknown): PlansResult {
   const parsed = parseYnabResponse(plansResponseSchema, response, "list plans");
   return {
     plans: parsed.data.plans.map((plan) => pick(plan, ["id", "name", "last_modified_on", "currency_format"])),
   };
 }
 
-export function shapeAccounts(response: unknown, includeClosed: boolean): unknown {
+export function shapeAccounts(response: unknown, includeClosed: boolean): AccountsResult {
   const parsed = parseYnabResponse(accountsContainerSchema, response, "list accounts container");
   const emittedAccounts = parsed.data.accounts.filter((account) => !isRecord(account) || includeClosed || account.closed !== true);
   const accounts = parseYnabResponse(accountSchema.array(), emittedAccounts, "list accounts records")
@@ -38,17 +52,17 @@ export function shapeAccounts(response: unknown, includeClosed: boolean): unknow
   return { accounts };
 }
 
-export function shapeCategory(response: unknown): unknown {
+export function shapeCategory(response: unknown): CategoryResult {
   const parsed = parseYnabResponse(categoryResponseSchema, response, "category");
   return { category: shapeCategoryRecord(parsed.data.category) };
 }
 
-export function shapeCategoryGroup(response: unknown): unknown {
+export function shapeCategoryGroup(response: unknown): CategoryGroupResult {
   const parsed = parseYnabResponse(categoryGroupResponseSchema, response, "category group");
   return { category_group: shapeCategoryGroupRecord(parsed.data.category_group) };
 }
 
-export function shapeCategories(response: unknown): unknown {
+export function shapeCategories(response: unknown): CategoriesResult {
   const parsed = parseYnabResponse(categoriesResponseSchema, response, "list categories");
   return {
     category_groups: parsed.data.category_groups.map((group) => ({
@@ -58,17 +72,17 @@ export function shapeCategories(response: unknown): unknown {
   };
 }
 
-export function shapePayees(response: unknown): unknown {
+export function shapePayees(response: unknown): PayeesResult {
   const parsed = parseYnabResponse(payeesResponseSchema, response, "list payees");
   return { payees: parsed.data.payees.map(shapePayeeRecord) };
 }
 
-export function shapePayee(response: unknown): unknown {
+export function shapePayee(response: unknown): PayeeResult {
   const parsed = parseYnabResponse(payeeResponseSchema, response, "payee");
   return { payee: shapePayeeRecord(parsed.data.payee) };
 }
 
-export function shapeMonth(response: unknown): unknown {
+export function shapeMonth(response: unknown): MonthResult {
   const parsed = parseYnabResponse(monthResponseSchema, response, "month");
   return {
     month: {
@@ -78,17 +92,17 @@ export function shapeMonth(response: unknown): unknown {
   };
 }
 
-export function shapeMonths(response: unknown): unknown {
+export function shapeMonths(response: unknown): MonthsResult {
   const parsed = parseYnabResponse(monthsResponseSchema, response, "list months");
   return { months: parsed.data.months.map(shapeMonthSummaryRecord) };
 }
 
-export function shapeMonthCategory(response: unknown): unknown {
+export function shapeMonthCategory(response: unknown): CategoryResult {
   const parsed = parseYnabResponse(monthCategoryResponseSchema, response, "month category");
   return { category: shapeMonthCategoryRecord(parsed.data.category) };
 }
 
-export function shapeTransactions(response: unknown, filters: TransactionFilters): unknown {
+export function shapeTransactions(response: unknown, filters: TransactionFilters): TransactionsResult {
   const parsed = parseYnabResponse(transactionsContainerSchema, response, "list transactions container");
   const emittedTransactions = parsed.data.transactions
     .filter((transaction) => matchesTransactionFilters(transaction, filters))
@@ -98,17 +112,17 @@ export function shapeTransactions(response: unknown, filters: TransactionFilters
   return { transactions };
 }
 
-export function shapeTransaction(response: unknown): unknown {
+export function shapeTransaction(response: unknown): TransactionResult {
   const parsed = parseYnabResponse(transactionResponseSchema, response, "transaction");
   return { transaction: shapeTransactionRecord(parsed.data.transaction) };
 }
 
-export function shapeTransactionWrite(response: unknown): unknown {
+export function shapeTransactionWrite(response: unknown): TransactionResult {
   const parsed = parseYnabResponse(transactionWriteResponseSchema, response, "transaction write");
   return { transaction: shapeTransactionRecord(parsed.data.transaction) };
 }
 
-export function shapeScheduledTransactions(response: unknown, limit: number): unknown {
+export function shapeScheduledTransactions(response: unknown, limit: number): ScheduledTransactionsResult {
   const parsed = parseYnabResponse(scheduledTransactionsContainerSchema, response, "list scheduled transactions container");
   const emittedScheduledTransactions = parsed.data.scheduled_transactions.slice(0, limit);
   const scheduledTransactions = parseYnabResponse(
@@ -119,12 +133,12 @@ export function shapeScheduledTransactions(response: unknown, limit: number): un
   return { scheduled_transactions: scheduledTransactions };
 }
 
-export function shapeScheduledTransaction(response: unknown): unknown {
+export function shapeScheduledTransaction(response: unknown): ScheduledTransactionResult {
   const parsed = parseYnabResponse(scheduledTransactionResponseSchema, response, "scheduled transaction");
   return { scheduled_transaction: shapeScheduledTransactionRecord(parsed.data.scheduled_transaction) };
 }
 
-export function shapeScheduledTransactionWrite(response: unknown): unknown {
+export function shapeScheduledTransactionWrite(response: unknown): ScheduledTransactionResult {
   const parsed = parseYnabResponse(scheduledTransactionWriteResponseSchema, response, "scheduled transaction write");
   return { scheduled_transaction: shapeScheduledTransactionRecord(parsed.data.scheduled_transaction) };
 }
@@ -132,8 +146,8 @@ export function shapeScheduledTransactionWrite(response: unknown): unknown {
 export type TransactionFilters = {
   limit: number;
   query?: string;
-  accountId?: string;
-  categoryId?: string;
+  accountId?: AccountId;
+  categoryId?: CategoryId;
 };
 
 function shapeCategoryRecord(category: JsonRecord): JsonRecord {

@@ -26,20 +26,24 @@ export type AppConfig = {
   devAuthBypass: boolean;
 };
 
-export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
-  const parsed = envSchema.parse(env);
-
+const appConfigSchema = envSchema.transform((parsed, ctx) => {
   if (parsed.DEV_AUTH_BYPASS && parsed.NODE_ENV === "production") {
-    throw new Error("DEV_AUTH_BYPASS must not be enabled in production");
+    ctx.addIssue({ code: "custom", message: "DEV_AUTH_BYPASS must not be enabled in production", path: ["DEV_AUTH_BYPASS"] });
+    return z.NEVER;
   }
 
   if (!parsed.DEV_AUTH_BYPASS && !parsed.OWNER_PASSPHRASE) {
-    throw new Error("OWNER_PASSPHRASE is required unless DEV_AUTH_BYPASS is enabled");
+    ctx.addIssue({
+      code: "custom",
+      message: "OWNER_PASSPHRASE is required unless DEV_AUTH_BYPASS is enabled",
+      path: ["OWNER_PASSPHRASE"],
+    });
+    return z.NEVER;
   }
 
-  const token = parsed.YNAB_ACCESS_TOKEN;
-  if (!token) {
-    throw new Error("YNAB_ACCESS_TOKEN is required");
+  if (!parsed.YNAB_ACCESS_TOKEN) {
+    ctx.addIssue({ code: "custom", message: "YNAB_ACCESS_TOKEN is required", path: ["YNAB_ACCESS_TOKEN"] });
+    return z.NEVER;
   }
 
   const publicBaseUrl = new URL(parsed.PUBLIC_BASE_URL);
@@ -51,8 +55,12 @@ export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
     publicBaseUrl,
     mcpUrl,
     ynabApiBaseUrl: new URL(parsed.YNAB_API_BASE_URL),
-    ynabAccessToken: token,
+    ynabAccessToken: parsed.YNAB_ACCESS_TOKEN,
     ...(parsed.OWNER_PASSPHRASE ? { ownerPassphrase: parsed.OWNER_PASSPHRASE } : {}),
     devAuthBypass: parsed.DEV_AUTH_BYPASS,
-  };
+  } satisfies AppConfig;
+});
+
+export function loadConfig(env: NodeJS.ProcessEnv = process.env): AppConfig {
+  return appConfigSchema.parse(env);
 }

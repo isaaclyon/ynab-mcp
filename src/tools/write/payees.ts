@@ -1,6 +1,7 @@
 import { z } from "zod";
 import type { McpServer } from "@modelcontextprotocol/sdk/server/mcp.js";
 import type { YnabClient } from "../../ynab/client.js";
+import { parseCreatePayeeCommand, parseUpdatePayeeCommand } from "../../domain/ynabCommands.js";
 import { createAnnotations, updateAnnotations } from "../annotations.js";
 import { ynabResult } from "../result.js";
 import { planId, writePayeeId } from "../schemas.js";
@@ -17,7 +18,10 @@ export function registerPayeeWriteTools(server: McpServer, ynab: YnabClient): vo
       inputSchema: { plan_id: planId, name: payeeNameValue },
       annotations: { ...createAnnotations, title: "Create YNAB payee" },
     },
-    ({ plan_id, name }) => ynabResult(ynab.createPayee(plan_id, { name }), shapePayee),
+    (args) => {
+      const command = parseCreatePayeeCommand(args);
+      return ynabResult(ynab.createPayee(command.planId, command.payee), shapePayee);
+    },
   );
 
   server.registerTool(
@@ -28,6 +32,9 @@ export function registerPayeeWriteTools(server: McpServer, ynab: YnabClient): vo
       inputSchema: { plan_id: planId, payee_id: writePayeeId, name: payeeNameValue },
       annotations: { ...updateAnnotations, title: "Update YNAB payee" },
     },
-    ({ plan_id, payee_id, name }) => ynabResult(ynab.updatePayee(plan_id, payee_id, { name }), shapePayee),
+    (args) => {
+      const command = parseUpdatePayeeCommand(args);
+      return ynabResult(ynab.updatePayee(command.planId, command.payeeId, command.payee), shapePayee);
+    },
   );
 }

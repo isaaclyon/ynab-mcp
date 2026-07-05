@@ -1,3 +1,16 @@
+import { toYnabMonthDate, type AccountId, type CategoryGroupId, type CategoryId, type IsoDate, type Month, type PayeeId, type PlanId, type ScheduledTransactionId, type TransactionId } from "../domain/ynabValues.js";
+import type {
+  CategoryGroupInput,
+  CategoryInput,
+  CreateCategoryInput,
+  CreateTransactionInput,
+  MonthCategoryInput,
+  PayeeInput,
+  ScheduledTransactionInput,
+  UpdateScheduledTransactionInput,
+  UpdateTransactionInput,
+} from "../domain/ynabCommands.js";
+
 export type YnabClientConfig = {
   baseUrl: URL;
   accessToken: string;
@@ -26,70 +39,6 @@ const DELTA_SUPPORTED_GET_PATHS = [
   /^\/plans\/[^/]+\/categories$/,
   /^\/plans\/[^/]+\/payees$/,
 ] as const;
-
-export type CategoryGroupInput = {
-  name: string;
-};
-
-export type CategoryInput = {
-  name?: string | null;
-  note?: string | null;
-  category_group_id?: string;
-  goal_target?: number | null;
-  goal_target_date?: string | null;
-  goal_needs_whole_amount?: boolean | null;
-};
-
-export type CreateTransactionInput = {
-  account_id: string;
-  date: string;
-  amount: number;
-  payee_id?: string;
-  payee_name?: string;
-  category_id?: string | null;
-  memo?: string | null;
-  cleared?: "cleared" | "uncleared" | "reconciled";
-  approved?: boolean;
-  flag_color?: "red" | "orange" | "yellow" | "green" | "blue" | "purple" | null;
-  import_id?: string;
-};
-
-export type UpdateTransactionInput = Partial<Omit<CreateTransactionInput, "import_id">>;
-
-export type ScheduledTransactionInput = {
-  account_id: string;
-  date: string;
-  amount: number;
-  frequency:
-    | "never"
-    | "daily"
-    | "weekly"
-    | "everyOtherWeek"
-    | "twiceAMonth"
-    | "every4Weeks"
-    | "monthly"
-    | "everyOtherMonth"
-    | "every3Months"
-    | "every4Months"
-    | "twiceAYear"
-    | "yearly"
-    | "everyOtherYear";
-  payee_id?: string;
-  payee_name?: string;
-  category_id?: string | null;
-  memo?: string | null;
-  flag_color?: "red" | "orange" | "yellow" | "green" | "blue" | "purple" | null;
-};
-
-export type UpdateScheduledTransactionInput = Partial<ScheduledTransactionInput>;
-
-export type MonthCategoryInput = {
-  budgeted: number;
-};
-
-export type PayeeInput = {
-  name: string;
-};
 
 export class YnabApiError extends Error {
   constructor(
@@ -125,35 +74,35 @@ export class YnabClient {
     return this.request("GET", "/plans");
   }
 
-  listAccounts(planId: string): Promise<unknown> {
+  listAccounts(planId: PlanId): Promise<unknown> {
     return this.request("GET", `/plans/${encodeURIComponent(planId)}/accounts`);
   }
 
-  listCategories(planId: string): Promise<unknown> {
+  listCategories(planId: PlanId): Promise<unknown> {
     return this.request("GET", `/plans/${encodeURIComponent(planId)}/categories`);
   }
 
-  getCategory(planId: string, categoryId: string): Promise<unknown> {
+  getCategory(planId: PlanId, categoryId: CategoryId): Promise<unknown> {
     return this.request("GET", `/plans/${encodeURIComponent(planId)}/categories/${encodeURIComponent(categoryId)}`);
   }
 
-  createCategory(planId: string, category: CategoryInput & { name: string; category_group_id: string }): Promise<unknown> {
+  createCategory(planId: PlanId, category: CreateCategoryInput): Promise<unknown> {
     return this.request("POST", `/plans/${encodeURIComponent(planId)}/categories`, undefined, { category });
   }
 
-  updateCategory(planId: string, categoryId: string, category: CategoryInput): Promise<unknown> {
+  updateCategory(planId: PlanId, categoryId: CategoryId, category: CategoryInput): Promise<unknown> {
     return this.request("PATCH", `/plans/${encodeURIComponent(planId)}/categories/${encodeURIComponent(categoryId)}`, undefined, {
       category,
     });
   }
 
-  createCategoryGroup(planId: string, categoryGroup: CategoryGroupInput): Promise<unknown> {
+  createCategoryGroup(planId: PlanId, categoryGroup: CategoryGroupInput): Promise<unknown> {
     return this.request("POST", `/plans/${encodeURIComponent(planId)}/category_groups`, undefined, {
       category_group: categoryGroup,
     });
   }
 
-  updateCategoryGroup(planId: string, categoryGroupId: string, categoryGroup: CategoryGroupInput): Promise<unknown> {
+  updateCategoryGroup(planId: PlanId, categoryGroupId: CategoryGroupId, categoryGroup: CategoryGroupInput): Promise<unknown> {
     return this.request(
       "PATCH",
       `/plans/${encodeURIComponent(planId)}/category_groups/${encodeURIComponent(categoryGroupId)}`,
@@ -162,38 +111,38 @@ export class YnabClient {
     );
   }
 
-  listPayees(planId: string): Promise<unknown> {
+  listPayees(planId: PlanId): Promise<unknown> {
     return this.request("GET", `/plans/${encodeURIComponent(planId)}/payees`);
   }
 
-  createPayee(planId: string, payee: PayeeInput): Promise<unknown> {
+  createPayee(planId: PlanId, payee: PayeeInput): Promise<unknown> {
     return this.request("POST", `/plans/${encodeURIComponent(planId)}/payees`, undefined, { payee });
   }
 
-  getPayee(planId: string, payeeId: string): Promise<unknown> {
+  getPayee(planId: PlanId, payeeId: PayeeId): Promise<unknown> {
     return this.request("GET", `/plans/${encodeURIComponent(planId)}/payees/${encodeURIComponent(payeeId)}`);
   }
 
-  updatePayee(planId: string, payeeId: string, payee: PayeeInput): Promise<unknown> {
+  updatePayee(planId: PlanId, payeeId: PayeeId, payee: PayeeInput): Promise<unknown> {
     return this.request("PATCH", `/plans/${encodeURIComponent(planId)}/payees/${encodeURIComponent(payeeId)}`, undefined, { payee });
   }
 
-  getMonth(planId: string, month: string): Promise<unknown> {
+  getMonth(planId: PlanId, month: Month): Promise<unknown> {
     return this.request("GET", `/plans/${encodeURIComponent(planId)}/months/${encodeURIComponent(toYnabMonthDate(month))}`);
   }
 
-  listMonths(planId: string): Promise<unknown> {
+  listMonths(planId: PlanId): Promise<unknown> {
     return this.request("GET", `/plans/${encodeURIComponent(planId)}/months`);
   }
 
-  getMonthCategory(planId: string, month: string, categoryId: string): Promise<unknown> {
+  getMonthCategory(planId: PlanId, month: Month, categoryId: CategoryId): Promise<unknown> {
     return this.request(
       "GET",
       `/plans/${encodeURIComponent(planId)}/months/${encodeURIComponent(toYnabMonthDate(month))}/categories/${encodeURIComponent(categoryId)}`,
     );
   }
 
-  updateMonthCategory(planId: string, month: string, categoryId: string, category: MonthCategoryInput): Promise<unknown> {
+  updateMonthCategory(planId: PlanId, month: Month, categoryId: CategoryId, category: MonthCategoryInput): Promise<unknown> {
     return this.request(
       "PATCH",
       `/plans/${encodeURIComponent(planId)}/months/${encodeURIComponent(toYnabMonthDate(month))}/categories/${encodeURIComponent(categoryId)}`,
@@ -202,62 +151,62 @@ export class YnabClient {
     );
   }
 
-  listTransactions(planId: string, sinceDate?: string): Promise<unknown> {
+  listTransactions(planId: PlanId, sinceDate?: IsoDate): Promise<unknown> {
     const query = sinceDate ? { since_date: sinceDate } : undefined;
     return this.request("GET", `/plans/${encodeURIComponent(planId)}/transactions`, query);
   }
 
-  listCategoryTransactions(planId: string, categoryId: string): Promise<unknown> {
+  listCategoryTransactions(planId: PlanId, categoryId: CategoryId): Promise<unknown> {
     return this.request(
       "GET",
       `/plans/${encodeURIComponent(planId)}/categories/${encodeURIComponent(categoryId)}/transactions`,
     );
   }
 
-  listAccountTransactions(planId: string, accountId: string): Promise<unknown> {
+  listAccountTransactions(planId: PlanId, accountId: AccountId): Promise<unknown> {
     return this.request(
       "GET",
       `/plans/${encodeURIComponent(planId)}/accounts/${encodeURIComponent(accountId)}/transactions`,
     );
   }
 
-  listPayeeTransactions(planId: string, payeeId: string): Promise<unknown> {
+  listPayeeTransactions(planId: PlanId, payeeId: PayeeId): Promise<unknown> {
     return this.request("GET", `/plans/${encodeURIComponent(planId)}/payees/${encodeURIComponent(payeeId)}/transactions`);
   }
 
-  listMonthTransactions(planId: string, month: string): Promise<unknown> {
+  listMonthTransactions(planId: PlanId, month: Month): Promise<unknown> {
     return this.request("GET", `/plans/${encodeURIComponent(planId)}/months/${encodeURIComponent(toYnabMonthDate(month))}/transactions`);
   }
 
-  getTransaction(planId: string, transactionId: string): Promise<unknown> {
+  getTransaction(planId: PlanId, transactionId: TransactionId): Promise<unknown> {
     return this.request("GET", `/plans/${encodeURIComponent(planId)}/transactions/${encodeURIComponent(transactionId)}`);
   }
 
-  createTransaction(planId: string, transaction: CreateTransactionInput): Promise<unknown> {
+  createTransaction(planId: PlanId, transaction: CreateTransactionInput): Promise<unknown> {
     return this.request("POST", `/plans/${encodeURIComponent(planId)}/transactions`, undefined, { transaction });
   }
 
-  updateTransaction(planId: string, transactionId: string, transaction: UpdateTransactionInput): Promise<unknown> {
+  updateTransaction(planId: PlanId, transactionId: TransactionId, transaction: UpdateTransactionInput): Promise<unknown> {
     return this.request("PUT", `/plans/${encodeURIComponent(planId)}/transactions/${encodeURIComponent(transactionId)}`, undefined, {
       transaction,
     });
   }
 
-  deleteTransaction(planId: string, transactionId: string): Promise<unknown> {
+  deleteTransaction(planId: PlanId, transactionId: TransactionId): Promise<unknown> {
     return this.request("DELETE", `/plans/${encodeURIComponent(planId)}/transactions/${encodeURIComponent(transactionId)}`);
   }
 
-  listScheduledTransactions(planId: string): Promise<unknown> {
+  listScheduledTransactions(planId: PlanId): Promise<unknown> {
     return this.request("GET", `/plans/${encodeURIComponent(planId)}/scheduled_transactions`);
   }
 
-  createScheduledTransaction(planId: string, scheduledTransaction: ScheduledTransactionInput): Promise<unknown> {
+  createScheduledTransaction(planId: PlanId, scheduledTransaction: ScheduledTransactionInput): Promise<unknown> {
     return this.request("POST", `/plans/${encodeURIComponent(planId)}/scheduled_transactions`, undefined, {
       scheduled_transaction: scheduledTransaction,
     });
   }
 
-  getScheduledTransaction(planId: string, scheduledTransactionId: string): Promise<unknown> {
+  getScheduledTransaction(planId: PlanId, scheduledTransactionId: ScheduledTransactionId): Promise<unknown> {
     return this.request(
       "GET",
       `/plans/${encodeURIComponent(planId)}/scheduled_transactions/${encodeURIComponent(scheduledTransactionId)}`,
@@ -265,8 +214,8 @@ export class YnabClient {
   }
 
   updateScheduledTransaction(
-    planId: string,
-    scheduledTransactionId: string,
+    planId: PlanId,
+    scheduledTransactionId: ScheduledTransactionId,
     scheduledTransaction: UpdateScheduledTransactionInput,
   ): Promise<unknown> {
     return this.request(
@@ -277,7 +226,7 @@ export class YnabClient {
     );
   }
 
-  deleteScheduledTransaction(planId: string, scheduledTransactionId: string): Promise<unknown> {
+  deleteScheduledTransaction(planId: PlanId, scheduledTransactionId: ScheduledTransactionId): Promise<unknown> {
     return this.request(
       "DELETE",
       `/plans/${encodeURIComponent(planId)}/scheduled_transactions/${encodeURIComponent(scheduledTransactionId)}`,
@@ -460,9 +409,6 @@ function appendSlash(url: URL): URL {
   return copy;
 }
 
-function toYnabMonthDate(month: string): string {
-  return `${month}-01`;
-}
 
 async function readJsonBody(response: Response): Promise<unknown> {
   const text = await response.text();

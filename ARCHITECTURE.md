@@ -37,7 +37,7 @@ YNAB API (`https://api.ynab.com/v1`)
 ### Tool modules
 
 - Responsibility: Define named YNAB concept tools with tight schemas, annotations, and compact result shaping.
-- Important boundary: Read tools and write tools live behind separate aggregate entrypoints and delegate to concept-focused slices for plans, accounts, categories, payees, months, transactions, and scheduled transactions.
+- Important boundary: Read tools and write tools live behind separate aggregate entrypoints and delegate to concept-focused slices for plans, accounts, categories, payees, months, transactions, and scheduled transactions. Tool input schemas and command parsers turn transport values into parsed YNAB value types before calling the YNAB client.
 - What they must not own: generic arbitrary endpoint execution as the primary API.
 
 ### Hosting boundary
@@ -70,6 +70,7 @@ YNAB API (`https://api.ynab.com/v1`)
 - Every tool has MCP annotations for at least title, read-only/destructive behavior, and external-world access.
 - Tool results should be compact enough for Claude web limits and include IDs needed for follow-up calls.
 - Tool shaping validates key upstream response slices before compact projection, while the YNAB client boundary still treats external response bodies as `unknown`.
+- Internal tool/client calls use parsed domain values and command payloads for repeated YNAB concepts such as plan IDs, category IDs, payee IDs, transaction IDs, months, ISO dates, and milliunits; raw transport primitives should not be passed deeper once parsed.
 - Expected YNAB API failures should be returned as structured MCP tool errors with safe status/code/message fields, not as opaque internal failures.
 - The project uses `plans`, not `budgets`, in new user-facing schemas and docs.
 - The YNAB client may cache successful read-only `GET` responses briefly, deduplicate in-flight reads, and clear cached reads after successful writes.

@@ -75,7 +75,7 @@ export const categorySchema = z
     note: optionalNullableText,
     hidden: optionalBoolean,
     internal: optionalBoolean,
-    original_category_group_id: id.optional(),
+    original_category_group_id: nullableId.optional(),
     budgeted: milliunits,
     activity: milliunits,
     balance: milliunits,
