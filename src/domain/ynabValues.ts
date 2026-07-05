@@ -25,10 +25,22 @@ export const categoryGroupIdSchema = nonEmptyTrimmed.transform((value) => value 
 export const payeeIdSchema = nonEmptyTrimmed.transform((value) => value as PayeeId);
 export const untrimmedPayeeIdSchema = nonEmptyUntrimmed.transform((value) => value as PayeeId);
 export const transactionIdSchema = nonEmptyTrimmed.transform((value) => value as TransactionId);
-export const scheduledTransactionIdSchema = nonEmptyTrimmed.transform((value) => value as ScheduledTransactionId);
-export const monthSchema = z.string().trim().regex(monthPattern).transform((value) => value as Month);
-export const isoDateSchema = z.string().regex(isoDatePattern).transform((value) => value as IsoDate);
-export const milliunitsSchema = z.number().int().transform((value) => value as Milliunits);
+export const scheduledTransactionIdSchema = nonEmptyTrimmed.transform(
+  (value) => value as ScheduledTransactionId,
+);
+export const monthSchema = z
+  .string()
+  .trim()
+  .regex(monthPattern)
+  .transform((value) => value as Month);
+export const isoDateSchema = z
+  .string()
+  .regex(isoDatePattern)
+  .transform((value) => value as IsoDate);
+export const milliunitsSchema = z
+  .number()
+  .int()
+  .transform((value) => value as Milliunits);
 
 export function toYnabMonthDate(month: Month): IsoDate {
   return `${month}-01` as IsoDate;

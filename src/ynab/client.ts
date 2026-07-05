@@ -1,4 +1,15 @@
-import { toYnabMonthDate, type AccountId, type CategoryGroupId, type CategoryId, type IsoDate, type Month, type PayeeId, type PlanId, type ScheduledTransactionId, type TransactionId } from "../domain/ynabValues.js";
+import {
+  toYnabMonthDate,
+  type AccountId,
+  type CategoryGroupId,
+  type CategoryId,
+  type IsoDate,
+  type Month,
+  type PayeeId,
+  type PlanId,
+  type ScheduledTransactionId,
+  type TransactionId,
+} from "../domain/ynabValues.js";
 import type {
   CategoryGroupInput,
   CategoryInput,
@@ -83,17 +94,31 @@ export class YnabClient {
   }
 
   getCategory(planId: PlanId, categoryId: CategoryId): Promise<unknown> {
-    return this.request("GET", `/plans/${encodeURIComponent(planId)}/categories/${encodeURIComponent(categoryId)}`);
+    return this.request(
+      "GET",
+      `/plans/${encodeURIComponent(planId)}/categories/${encodeURIComponent(categoryId)}`,
+    );
   }
 
   createCategory(planId: PlanId, category: CreateCategoryInput): Promise<unknown> {
-    return this.request("POST", `/plans/${encodeURIComponent(planId)}/categories`, undefined, { category });
-  }
-
-  updateCategory(planId: PlanId, categoryId: CategoryId, category: CategoryInput): Promise<unknown> {
-    return this.request("PATCH", `/plans/${encodeURIComponent(planId)}/categories/${encodeURIComponent(categoryId)}`, undefined, {
+    return this.request("POST", `/plans/${encodeURIComponent(planId)}/categories`, undefined, {
       category,
     });
+  }
+
+  updateCategory(
+    planId: PlanId,
+    categoryId: CategoryId,
+    category: CategoryInput,
+  ): Promise<unknown> {
+    return this.request(
+      "PATCH",
+      `/plans/${encodeURIComponent(planId)}/categories/${encodeURIComponent(categoryId)}`,
+      undefined,
+      {
+        category,
+      },
+    );
   }
 
   createCategoryGroup(planId: PlanId, categoryGroup: CategoryGroupInput): Promise<unknown> {
@@ -102,7 +127,11 @@ export class YnabClient {
     });
   }
 
-  updateCategoryGroup(planId: PlanId, categoryGroupId: CategoryGroupId, categoryGroup: CategoryGroupInput): Promise<unknown> {
+  updateCategoryGroup(
+    planId: PlanId,
+    categoryGroupId: CategoryGroupId,
+    categoryGroup: CategoryGroupInput,
+  ): Promise<unknown> {
     return this.request(
       "PATCH",
       `/plans/${encodeURIComponent(planId)}/category_groups/${encodeURIComponent(categoryGroupId)}`,
@@ -116,19 +145,32 @@ export class YnabClient {
   }
 
   createPayee(planId: PlanId, payee: PayeeInput): Promise<unknown> {
-    return this.request("POST", `/plans/${encodeURIComponent(planId)}/payees`, undefined, { payee });
+    return this.request("POST", `/plans/${encodeURIComponent(planId)}/payees`, undefined, {
+      payee,
+    });
   }
 
   getPayee(planId: PlanId, payeeId: PayeeId): Promise<unknown> {
-    return this.request("GET", `/plans/${encodeURIComponent(planId)}/payees/${encodeURIComponent(payeeId)}`);
+    return this.request(
+      "GET",
+      `/plans/${encodeURIComponent(planId)}/payees/${encodeURIComponent(payeeId)}`,
+    );
   }
 
   updatePayee(planId: PlanId, payeeId: PayeeId, payee: PayeeInput): Promise<unknown> {
-    return this.request("PATCH", `/plans/${encodeURIComponent(planId)}/payees/${encodeURIComponent(payeeId)}`, undefined, { payee });
+    return this.request(
+      "PATCH",
+      `/plans/${encodeURIComponent(planId)}/payees/${encodeURIComponent(payeeId)}`,
+      undefined,
+      { payee },
+    );
   }
 
   getMonth(planId: PlanId, month: Month): Promise<unknown> {
-    return this.request("GET", `/plans/${encodeURIComponent(planId)}/months/${encodeURIComponent(toYnabMonthDate(month))}`);
+    return this.request(
+      "GET",
+      `/plans/${encodeURIComponent(planId)}/months/${encodeURIComponent(toYnabMonthDate(month))}`,
+    );
   }
 
   listMonths(planId: PlanId): Promise<unknown> {
@@ -142,7 +184,12 @@ export class YnabClient {
     );
   }
 
-  updateMonthCategory(planId: PlanId, month: Month, categoryId: CategoryId, category: MonthCategoryInput): Promise<unknown> {
+  updateMonthCategory(
+    planId: PlanId,
+    month: Month,
+    categoryId: CategoryId,
+    category: MonthCategoryInput,
+  ): Promise<unknown> {
     return this.request(
       "PATCH",
       `/plans/${encodeURIComponent(planId)}/months/${encodeURIComponent(toYnabMonthDate(month))}/categories/${encodeURIComponent(categoryId)}`,
@@ -171,42 +218,76 @@ export class YnabClient {
   }
 
   listPayeeTransactions(planId: PlanId, payeeId: PayeeId): Promise<unknown> {
-    return this.request("GET", `/plans/${encodeURIComponent(planId)}/payees/${encodeURIComponent(payeeId)}/transactions`);
+    return this.request(
+      "GET",
+      `/plans/${encodeURIComponent(planId)}/payees/${encodeURIComponent(payeeId)}/transactions`,
+    );
   }
 
   listMonthTransactions(planId: PlanId, month: Month): Promise<unknown> {
-    return this.request("GET", `/plans/${encodeURIComponent(planId)}/months/${encodeURIComponent(toYnabMonthDate(month))}/transactions`);
+    return this.request(
+      "GET",
+      `/plans/${encodeURIComponent(planId)}/months/${encodeURIComponent(toYnabMonthDate(month))}/transactions`,
+    );
   }
 
   getTransaction(planId: PlanId, transactionId: TransactionId): Promise<unknown> {
-    return this.request("GET", `/plans/${encodeURIComponent(planId)}/transactions/${encodeURIComponent(transactionId)}`);
+    return this.request(
+      "GET",
+      `/plans/${encodeURIComponent(planId)}/transactions/${encodeURIComponent(transactionId)}`,
+    );
   }
 
   createTransaction(planId: PlanId, transaction: CreateTransactionInput): Promise<unknown> {
-    return this.request("POST", `/plans/${encodeURIComponent(planId)}/transactions`, undefined, { transaction });
-  }
-
-  updateTransaction(planId: PlanId, transactionId: TransactionId, transaction: UpdateTransactionInput): Promise<unknown> {
-    return this.request("PUT", `/plans/${encodeURIComponent(planId)}/transactions/${encodeURIComponent(transactionId)}`, undefined, {
+    return this.request("POST", `/plans/${encodeURIComponent(planId)}/transactions`, undefined, {
       transaction,
     });
   }
 
+  updateTransaction(
+    planId: PlanId,
+    transactionId: TransactionId,
+    transaction: UpdateTransactionInput,
+  ): Promise<unknown> {
+    return this.request(
+      "PUT",
+      `/plans/${encodeURIComponent(planId)}/transactions/${encodeURIComponent(transactionId)}`,
+      undefined,
+      {
+        transaction,
+      },
+    );
+  }
+
   deleteTransaction(planId: PlanId, transactionId: TransactionId): Promise<unknown> {
-    return this.request("DELETE", `/plans/${encodeURIComponent(planId)}/transactions/${encodeURIComponent(transactionId)}`);
+    return this.request(
+      "DELETE",
+      `/plans/${encodeURIComponent(planId)}/transactions/${encodeURIComponent(transactionId)}`,
+    );
   }
 
   listScheduledTransactions(planId: PlanId): Promise<unknown> {
     return this.request("GET", `/plans/${encodeURIComponent(planId)}/scheduled_transactions`);
   }
 
-  createScheduledTransaction(planId: PlanId, scheduledTransaction: ScheduledTransactionInput): Promise<unknown> {
-    return this.request("POST", `/plans/${encodeURIComponent(planId)}/scheduled_transactions`, undefined, {
-      scheduled_transaction: scheduledTransaction,
-    });
+  createScheduledTransaction(
+    planId: PlanId,
+    scheduledTransaction: ScheduledTransactionInput,
+  ): Promise<unknown> {
+    return this.request(
+      "POST",
+      `/plans/${encodeURIComponent(planId)}/scheduled_transactions`,
+      undefined,
+      {
+        scheduled_transaction: scheduledTransaction,
+      },
+    );
   }
 
-  getScheduledTransaction(planId: PlanId, scheduledTransactionId: ScheduledTransactionId): Promise<unknown> {
+  getScheduledTransaction(
+    planId: PlanId,
+    scheduledTransactionId: ScheduledTransactionId,
+  ): Promise<unknown> {
     return this.request(
       "GET",
       `/plans/${encodeURIComponent(planId)}/scheduled_transactions/${encodeURIComponent(scheduledTransactionId)}`,
@@ -226,7 +307,10 @@ export class YnabClient {
     );
   }
 
-  deleteScheduledTransaction(planId: PlanId, scheduledTransactionId: ScheduledTransactionId): Promise<unknown> {
+  deleteScheduledTransaction(
+    planId: PlanId,
+    scheduledTransactionId: ScheduledTransactionId,
+  ): Promise<unknown> {
     return this.request(
       "DELETE",
       `/plans/${encodeURIComponent(planId)}/scheduled_transactions/${encodeURIComponent(scheduledTransactionId)}`,
@@ -284,15 +368,20 @@ export class YnabClient {
   ): Promise<unknown> {
     const deltaSupported = supportsDelta(path, query);
     const canUseDelta = deltaSupported && cached?.serverKnowledge !== undefined;
-    const requestQuery = canUseDelta ? { ...query, last_knowledge_of_server: String(cached.serverKnowledge) } : query;
+    const requestQuery = canUseDelta
+      ? { ...query, last_knowledge_of_server: String(cached.serverKnowledge) }
+      : query;
     const responseBody = await this.fetchJson("GET", this.buildUrl(path, requestQuery));
-    const value = canUseDelta ? await this.resolveDeltaRefresh(path, query, cached.value, responseBody) : responseBody;
+    const value = canUseDelta
+      ? await this.resolveDeltaRefresh(path, query, cached.value, responseBody)
+      : responseBody;
 
     if (this.cacheGeneration === generation) {
+      const serverKnowledge = serverKnowledgeOf(value);
       this.readCache.set(cacheKey, {
         value,
         expiresAtMs: Date.now() + this.readCacheTtlMs,
-        serverKnowledge: serverKnowledgeOf(value),
+        ...(serverKnowledge === undefined ? {} : { serverKnowledge }),
       });
     }
     return value;
@@ -318,7 +407,7 @@ export class YnabClient {
 
   private buildUrl(path: string, query: Record<string, string>): URL {
     const url = new URL(path.replace(/^\//, ""), appendSlash(this.baseUrl));
-    for (const [key, value] of Object.entries(query ?? {})) {
+    for (const [key, value] of Object.entries(query)) {
       url.searchParams.set(key, value);
     }
     return url;
@@ -353,12 +442,17 @@ export class YnabClient {
 }
 
 function supportsDelta(path: string, query: Record<string, string>): boolean {
-  return Object.keys(query).length === 0 && DELTA_SUPPORTED_GET_PATHS.some((pattern) => pattern.test(path));
+  return (
+    Object.keys(query).length === 0 &&
+    DELTA_SUPPORTED_GET_PATHS.some((pattern) => pattern.test(path))
+  );
 }
 
 function cacheKeyFor(path: string, query: Record<string, string>): string {
   const searchParams = new URLSearchParams();
-  for (const [key, value] of Object.entries(query).sort(([left], [right]) => left.localeCompare(right))) {
+  for (const [key, value] of Object.entries(query).sort(([left], [right]) =>
+    left.localeCompare(right),
+  )) {
     searchParams.set(key, value);
   }
   const queryString = searchParams.toString();
@@ -366,10 +460,10 @@ function cacheKeyFor(path: string, query: Record<string, string>): string {
 }
 
 function serverKnowledgeOf(value: unknown): number | undefined {
-  if (!isRecord(value) || !isRecord(value.data)) {
+  if (!isRecord(value) || !isRecord(value["data"])) {
     return undefined;
   }
-  const serverKnowledge = value.data.server_knowledge;
+  const serverKnowledge = value["data"]["server_knowledge"];
   return typeof serverKnowledge === "number" ? serverKnowledge : undefined;
 }
 
@@ -378,10 +472,12 @@ function isRecord(value: unknown): value is JsonRecord {
 }
 
 function hasDeltaChanges(value: unknown): boolean {
-  if (!isRecord(value) || !isRecord(value.data)) {
+  if (!isRecord(value) || !isRecord(value["data"])) {
     return true;
   }
-  return Object.entries(value.data).some(([key, entry]) => key !== "server_knowledge" && hasContent(entry));
+  return Object.entries(value["data"]).some(
+    ([key, entry]) => key !== "server_knowledge" && hasContent(entry),
+  );
 }
 
 function hasContent(value: unknown): boolean {
@@ -395,10 +491,10 @@ function hasContent(value: unknown): boolean {
 }
 
 function withServerKnowledge(value: unknown, serverKnowledge: number | undefined): unknown {
-  if (serverKnowledge === undefined || !isRecord(value) || !isRecord(value.data)) {
+  if (serverKnowledge === undefined || !isRecord(value) || !isRecord(value["data"])) {
     return value;
   }
-  return { ...value, data: { ...value.data, server_knowledge: serverKnowledge } };
+  return { ...value, data: { ...value["data"], server_knowledge: serverKnowledge } };
 }
 
 function appendSlash(url: URL): URL {
@@ -408,7 +504,6 @@ function appendSlash(url: URL): URL {
   }
   return copy;
 }
-
 
 async function readJsonBody(response: Response): Promise<unknown> {
   const text = await response.text();

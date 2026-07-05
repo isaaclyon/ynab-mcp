@@ -33,114 +33,97 @@ const optionalText = text.optional();
 const optionalNullableText = nullableText.optional();
 const optionalBoolean = boolean.optional();
 const optionalNullableBoolean = nullableBoolean.optional();
-const optionalMilliunits = milliunits.optional();
 const optionalNullableMilliunits = milliunits.nullable().optional();
 
 const dataContainer = <Shape extends z.ZodRawShape>(shape: Shape) =>
-  z
-    .object({
-      data: z.object(shape).passthrough(),
-    })
-    .passthrough();
+  z.looseObject({
+    data: z.looseObject(shape),
+  });
 
-const planSchema = z
-  .object({
-    id,
-    name: text,
-    last_modified_on: text.optional(),
-    currency_format: z.unknown().optional(),
-  })
-  .passthrough();
+const planSchema = z.looseObject({
+  id,
+  name: text,
+  last_modified_on: text.optional(),
+  currency_format: z.unknown().optional(),
+});
 
-export const accountSchema = z
-  .object({
-    id,
-    name: text,
-    type: text,
-    on_budget: boolean,
-    closed: boolean,
-    balance: milliunits,
-    cleared_balance: milliunits,
-    uncleared_balance: milliunits,
-    deleted: boolean,
-  })
-  .passthrough();
+export const accountSchema = z.looseObject({
+  id,
+  name: text,
+  type: text,
+  on_budget: boolean,
+  closed: boolean,
+  balance: milliunits,
+  cleared_balance: milliunits,
+  uncleared_balance: milliunits,
+  deleted: boolean,
+});
 
-export const categorySchema = z
-  .object({
-    id,
-    category_group_id: id,
-    category_group_name: optionalText,
-    name: text,
-    note: optionalNullableText,
-    hidden: optionalBoolean,
-    internal: optionalBoolean,
-    original_category_group_id: nullableId.optional(),
-    budgeted: milliunits,
-    activity: milliunits,
-    balance: milliunits,
-    goal_type: z.string().nullable().optional(),
-    goal_target: optionalNullableMilliunits,
-    goal_target_date: optionalNullableText,
-    goal_needs_whole_amount: optionalNullableBoolean,
-    deleted: boolean,
-  })
-  .passthrough();
+export const categorySchema = z.looseObject({
+  id,
+  category_group_id: id,
+  category_group_name: optionalText,
+  name: text,
+  note: optionalNullableText,
+  hidden: optionalBoolean,
+  internal: optionalBoolean,
+  original_category_group_id: nullableId.optional(),
+  budgeted: milliunits,
+  activity: milliunits,
+  balance: milliunits,
+  goal_type: z.string().nullable().optional(),
+  goal_target: optionalNullableMilliunits,
+  goal_target_date: optionalNullableText,
+  goal_needs_whole_amount: optionalNullableBoolean,
+  deleted: boolean,
+});
 
-const categoryGroupSchema = z
-  .object({
-    id,
-    name: text,
-    hidden: optionalBoolean,
-    internal: optionalBoolean,
-    deleted: optionalBoolean,
-  })
-  .passthrough();
+const categoryGroupSchema = z.looseObject({
+  id,
+  name: text,
+  hidden: optionalBoolean,
+  internal: optionalBoolean,
+  deleted: optionalBoolean,
+});
 
 const categoryGroupWithCategoriesSchema = categoryGroupSchema.extend({
   categories: z.array(categorySchema),
 });
 
-const payeeSchema = z
-  .object({
-    id,
-    name: text,
-    transfer_account_id: nullableId,
-    deleted: boolean,
-  })
-  .passthrough();
+const payeeSchema = z.looseObject({
+  id,
+  name: text,
+  transfer_account_id: nullableId,
+  deleted: boolean,
+});
 
-const monthSummarySchema = z
-  .object({
-    month: text,
-    note: nullableText,
-    income: milliunits,
-    budgeted: milliunits,
-    activity: milliunits,
-    to_be_budgeted: milliunits,
-    age_of_money: z.number().int().nullable(),
-    deleted: boolean,
-  })
-  .passthrough();
+const monthSummarySchema = z.looseObject({
+  month: text,
+  note: nullableText,
+  income: milliunits,
+  budgeted: milliunits,
+  activity: milliunits,
+  to_be_budgeted: milliunits,
+  age_of_money: z.number().int().nullable(),
+  deleted: boolean,
+});
 
 const monthSchema = monthSummarySchema.extend({
   categories: z.array(categorySchema),
 });
 
-const strictSubtransactionSchema = z
-  .object({
-    id,
-    transaction_id: id,
-    amount: milliunits,
-    memo: nullableText,
-    payee_id: nullableId,
-    payee_name: nullableText,
-    category_id: nullableId,
-    category_name: nullableText,
-    transfer_account_id: nullableId,
-    deleted: boolean,
-  })
-  .passthrough();
+const strictSubtransactionSchema = z.looseObject({
+  id,
+  transaction_id: id,
+  amount: milliunits,
+  memo: nullableText,
+  payee_id: nullableId,
+  payee_name: nullableText,
+  category_id: nullableId,
+  category_name: nullableText,
+  transfer_account_id: nullableId,
+  deleted: boolean,
+});
 
 const looseSubtransactionSchema = strictSubtransactionSchema.partial({
   transaction_id: true,
@@ -154,90 +137,94 @@ const looseSubtransactionSchema = strictSubtransactionSchema.partial({
   deleted: true,
 });
 
-export const transactionSchema = z
-  .object({
-    id,
-    date: text,
-    amount: milliunits,
-    memo: optionalNullableText,
-    cleared: optionalText,
-    approved: optionalBoolean,
-    flag_color: optionalNullableText,
-    account_id: id,
-    account_name: text,
-    payee_id: nullableId.optional(),
-    payee_name: nullableText.optional(),
-    category_id: nullableId.optional(),
-    category_name: nullableText.optional(),
-    transfer_account_id: nullableId.optional(),
-    deleted: boolean,
-    subtransactions: z.array(looseSubtransactionSchema).optional(),
+export const transactionSchema = z.looseObject({
+  id,
+  date: text,
+  amount: milliunits,
+  memo: optionalNullableText,
+  cleared: optionalText,
+  approved: optionalBoolean,
+  flag_color: optionalNullableText,
+  account_id: id,
+  account_name: text,
+  payee_id: nullableId.optional(),
+  payee_name: nullableText.optional(),
+  category_id: nullableId.optional(),
+  category_name: nullableText.optional(),
+  transfer_account_id: nullableId.optional(),
+  deleted: boolean,
+  subtransactions: z.array(looseSubtransactionSchema).optional(),
+});
+
+export const transactionWriteSchema = transactionSchema
+  .partial({
+    date: true,
+    amount: true,
+    memo: true,
+    cleared: true,
+    approved: true,
+    flag_color: true,
+    account_id: true,
+    account_name: true,
+    payee_id: true,
+    payee_name: true,
+    category_id: true,
+    category_name: true,
+    transfer_account_id: true,
+    deleted: true,
+    subtransactions: true,
   })
-  .passthrough();
+  .extend({ subtransactions: z.array(looseSubtransactionSchema).optional() });
 
-export const transactionWriteSchema = transactionSchema.partial({
-  date: true,
-  amount: true,
-  memo: true,
-  cleared: true,
-  approved: true,
-  flag_color: true,
-  account_id: true,
-  account_name: true,
-  payee_id: true,
-  payee_name: true,
-  category_id: true,
-  category_name: true,
-  transfer_account_id: true,
-  deleted: true,
-  subtransactions: true,
-}).extend({ subtransactions: z.array(looseSubtransactionSchema).optional() });
+export const scheduledTransactionSchema = z.looseObject({
+  id,
+  date_first: optionalText,
+  date_next: text,
+  amount: milliunits,
+  memo: optionalNullableText,
+  flag_color: optionalNullableText,
+  frequency: text,
+  account_id: id,
+  account_name: text,
+  payee_id: nullableId.optional(),
+  payee_name: nullableText.optional(),
+  category_id: nullableId.optional(),
+  category_name: nullableText.optional(),
+  transfer_account_id: nullableId.optional(),
+  deleted: boolean,
+  subtransactions: z.array(looseSubtransactionSchema).optional(),
+});
 
-export const scheduledTransactionSchema = z
-  .object({
-    id,
-    date_first: optionalText,
-    date_next: text,
-    amount: milliunits,
-    memo: optionalNullableText,
-    flag_color: optionalNullableText,
-    frequency: text,
-    account_id: id,
-    account_name: text,
-    payee_id: nullableId.optional(),
-    payee_name: nullableText.optional(),
-    category_id: nullableId.optional(),
-    category_name: nullableText.optional(),
-    transfer_account_id: nullableId.optional(),
-    deleted: boolean,
-    subtransactions: z.array(looseSubtransactionSchema).optional(),
+export const scheduledTransactionWriteSchema = scheduledTransactionSchema
+  .partial({
+    date_first: true,
+    date_next: true,
+    amount: true,
+    memo: true,
+    flag_color: true,
+    frequency: true,
+    account_id: true,
+    account_name: true,
+    payee_id: true,
+    payee_name: true,
+    category_id: true,
+    category_name: true,
+    transfer_account_id: true,
+    deleted: true,
+    subtransactions: true,
   })
-  .passthrough();
-
-export const scheduledTransactionWriteSchema = scheduledTransactionSchema.partial({
-  date_first: true,
-  date_next: true,
-  amount: true,
-  memo: true,
-  flag_color: true,
-  frequency: true,
-  account_id: true,
-  account_name: true,
-  payee_id: true,
-  payee_name: true,
-  category_id: true,
-  category_name: true,
-  transfer_account_id: true,
-  deleted: true,
-  subtransactions: true,
-}).extend({ subtransactions: z.array(looseSubtransactionSchema).optional() });
+  .extend({ subtransactions: z.array(looseSubtransactionSchema).optional() });
 
 export const accountsContainerSchema = dataContainer({ accounts: z.array(z.unknown()) });
 export const transactionsContainerSchema = dataContainer({ transactions: z.array(z.unknown()) });
-export const scheduledTransactionsContainerSchema = dataContainer({ scheduled_transactions: z.array(z.unknown()) });
+export const scheduledTransactionsContainerSchema = dataContainer({
+  scheduled_transactions: z.array(z.unknown()),
+});
 
 export const plansResponseSchema = dataContainer({ plans: z.array(planSchema) });
-export const categoriesResponseSchema = dataContainer({ category_groups: z.array(categoryGroupWithCategoriesSchema) });
+export const categoriesResponseSchema = dataContainer({
+  category_groups: z.array(categoryGroupWithCategoriesSchema),
+});
 export const categoryResponseSchema = dataContainer({ category: categorySchema });
 export const categoryGroupResponseSchema = dataContainer({ category_group: categoryGroupSchema });
 export const payeesResponseSchema = dataContainer({ payees: z.array(payeeSchema) });
@@ -246,6 +233,12 @@ export const monthsResponseSchema = dataContainer({ months: z.array(monthSummary
 export const monthResponseSchema = dataContainer({ month: monthSchema });
 export const monthCategoryResponseSchema = dataContainer({ category: categorySchema });
 export const transactionResponseSchema = dataContainer({ transaction: transactionSchema });
-export const transactionWriteResponseSchema = dataContainer({ transaction: transactionWriteSchema });
-export const scheduledTransactionResponseSchema = dataContainer({ scheduled_transaction: scheduledTransactionSchema });
-export const scheduledTransactionWriteResponseSchema = dataContainer({ scheduled_transaction: scheduledTransactionWriteSchema });
+export const transactionWriteResponseSchema = dataContainer({
+  transaction: transactionWriteSchema,
+});
+export const scheduledTransactionResponseSchema = dataContainer({
+  scheduled_transaction: scheduledTransactionSchema,
+});
+export const scheduledTransactionWriteResponseSchema = dataContainer({
+  scheduled_transaction: scheduledTransactionWriteSchema,
+});

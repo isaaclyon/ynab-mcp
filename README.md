@@ -66,12 +66,17 @@ For local MCP development only, set `DEV_AUTH_BYPASS=true`. This is rejected in 
 ## Scripts
 
 ```bash
+npm run format:check
+npm run lint
 npm run typecheck
 npm test
 npm run smoke
 npm run build
+npm run check
 npm start
 ```
+
+Use `npm run format` to apply Prettier and `npm run lint:fix` for safe ESLint fixes. `npm run check` runs the full local verification suite used by CI.
 
 `npm run smoke` starts an in-process Streamable HTTP server with mocked YNAB responses and verifies initialize, `tools/list`, and one read-only tool call. The automated test suite also covers category, payee, month/category budgeting, scoped account/category/payee/month transaction reads, transaction write/delete, and scheduled transaction tool calls.
 

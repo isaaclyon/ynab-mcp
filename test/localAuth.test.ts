@@ -15,8 +15,16 @@ describe("isLocalRequest", () => {
   });
 
   it("does not allow bypass for forwarded tunnel/proxy traffic", () => {
-    expect(isLocalRequest(requestWithRemoteAddress("127.0.0.1", "localhost", { "x-forwarded-for": "203.0.113.10" }))).toBe(false);
-    expect(isLocalRequest(requestWithRemoteAddress("127.0.0.1", "localhost", { "cf-connecting-ip": "203.0.113.10" }))).toBe(false);
+    expect(
+      isLocalRequest(
+        requestWithRemoteAddress("127.0.0.1", "localhost", { "x-forwarded-for": "203.0.113.10" }),
+      ),
+    ).toBe(false);
+    expect(
+      isLocalRequest(
+        requestWithRemoteAddress("127.0.0.1", "localhost", { "cf-connecting-ip": "203.0.113.10" }),
+      ),
+    ).toBe(false);
   });
 
   it("identifies loopback public base URLs", () => {

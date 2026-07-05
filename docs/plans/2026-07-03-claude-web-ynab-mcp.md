@@ -60,7 +60,6 @@ Implement a personal TypeScript YNAB MCP server, currently focused on local Stre
 
 ## Cut lines
 
-
 If scope gets tight, preserve:
 
 - Remote Streamable HTTP over Claude web compatibility.

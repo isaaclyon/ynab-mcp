@@ -10,7 +10,8 @@ export function registerCategoryReadTools(server: McpServer, ynab: YnabClient): 
     "ynab_list_categories",
     {
       title: "List YNAB categories",
-      description: "List category groups and categories for a YNAB plan, including category IDs and balances.",
+      description:
+        "List category groups and categories for a YNAB plan, including category IDs and balances.",
       inputSchema: { plan_id: planId },
       annotations: { ...readOnlyAnnotations, title: "List YNAB categories" },
     },

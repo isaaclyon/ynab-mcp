@@ -10,7 +10,8 @@ export function registerMonthReadTools(server: McpServer, ynab: YnabClient): voi
     "ynab_list_months",
     {
       title: "List YNAB months",
-      description: "List month summaries for a YNAB plan, including month IDs and assigned/activity totals.",
+      description:
+        "List month summaries for a YNAB plan, including month IDs and assigned/activity totals.",
       inputSchema: { plan_id: planId },
       annotations: { ...readOnlyAnnotations, title: "List YNAB months" },
     },
@@ -21,7 +22,8 @@ export function registerMonthReadTools(server: McpServer, ynab: YnabClient): voi
     "ynab_get_month",
     {
       title: "Get YNAB month",
-      description: "Get one month of YNAB plan data, including category budgeted/activity/balance values.",
+      description:
+        "Get one month of YNAB plan data, including category budgeted/activity/balance values.",
       inputSchema: { plan_id: planId, month },
       annotations: { ...readOnlyAnnotations, title: "Get YNAB month" },
     },
@@ -32,11 +34,14 @@ export function registerMonthReadTools(server: McpServer, ynab: YnabClient): voi
     "ynab_get_month_category",
     {
       title: "Get YNAB month category",
-      description: "Get one category's budgeted, activity, and balance values for a specific YNAB month.",
+      description:
+        "Get one category's budgeted, activity, and balance values for a specific YNAB month.",
       inputSchema: {
         plan_id: planId,
         month,
-        category_id: categoryId.describe("Category ID returned by ynab_list_categories or ynab_get_month."),
+        category_id: categoryId.describe(
+          "Category ID returned by ynab_list_categories or ynab_get_month.",
+        ),
       },
       annotations: { ...readOnlyAnnotations, title: "Get YNAB month category" },
     },

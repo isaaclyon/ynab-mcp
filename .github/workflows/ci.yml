@@ -7,7 +7,7 @@ on:
 
 jobs:
   verify:
-    name: Typecheck, test, and build
+    name: Format, lint, typecheck, test, smoke, and build
     runs-on: ubuntu-latest
 
     steps:
@@ -23,11 +23,20 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
+      - name: Format check
+        run: npm run format:check
+
+      - name: Lint
+        run: npm run lint
+
       - name: Typecheck
         run: npm run typecheck
 
       - name: Test
         run: npm test
+
+      - name: Smoke
+        run: npm run smoke
 
       - name: Build
         run: npm run build

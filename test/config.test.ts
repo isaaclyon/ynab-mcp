@@ -49,7 +49,9 @@ describe("loadConfig", () => {
       "OWNER_PASSPHRASE is required unless DEV_AUTH_BYPASS is enabled",
     );
 
-    expect(() => loadConfig({ NODE_ENV: "test", DEV_AUTH_BYPASS: "true" })).toThrow("YNAB_ACCESS_TOKEN is required");
+    expect(() => loadConfig({ NODE_ENV: "test", DEV_AUTH_BYPASS: "true" })).toThrow(
+      "YNAB_ACCESS_TOKEN is required",
+    );
   });
 
   it("rejects malformed boundary values before constructing AppConfig", () => {

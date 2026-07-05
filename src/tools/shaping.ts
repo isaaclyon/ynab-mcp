@@ -27,7 +27,9 @@ export type PlansResult = { plans: JsonRecord[] };
 export type AccountsResult = { accounts: JsonRecord[] };
 export type CategoryResult = { category: JsonRecord };
 export type CategoryGroupResult = { category_group: JsonRecord };
-export type CategoriesResult = { category_groups: Array<JsonRecord & { categories: JsonRecord[] }> };
+export type CategoriesResult = {
+  category_groups: (JsonRecord & { categories: JsonRecord[] })[];
+};
 export type PayeesResult = { payees: JsonRecord[] };
 export type PayeeResult = { payee: JsonRecord };
 export type MonthResult = { month: JsonRecord & { categories: JsonRecord[] } };
@@ -40,15 +42,34 @@ export type ScheduledTransactionResult = { scheduled_transaction: JsonRecord };
 export function shapePlans(response: unknown): PlansResult {
   const parsed = parseYnabResponse(plansResponseSchema, response, "list plans");
   return {
-    plans: parsed.data.plans.map((plan) => pick(plan, ["id", "name", "last_modified_on", "currency_format"])),
+    plans: parsed.data.plans.map((plan) =>
+      pick(plan, ["id", "name", "last_modified_on", "currency_format"]),
+    ),
   };
 }
 
 export function shapeAccounts(response: unknown, includeClosed: boolean): AccountsResult {
   const parsed = parseYnabResponse(accountsContainerSchema, response, "list accounts container");
-  const emittedAccounts = parsed.data.accounts.filter((account) => !isRecord(account) || includeClosed || account.closed !== true);
-  const accounts = parseYnabResponse(accountSchema.array(), emittedAccounts, "list accounts records")
-    .map((account) => pick(account, ["id", "name", "type", "on_budget", "closed", "balance", "cleared_balance", "uncleared_balance", "deleted"]));
+  const emittedAccounts = parsed.data.accounts.filter(
+    (account) => !isRecord(account) || includeClosed || account["closed"] !== true,
+  );
+  const accounts = parseYnabResponse(
+    accountSchema.array(),
+    emittedAccounts,
+    "list accounts records",
+  ).map((account) =>
+    pick(account, [
+      "id",
+      "name",
+      "type",
+      "on_budget",
+      "closed",
+      "balance",
+      "cleared_balance",
+      "uncleared_balance",
+      "deleted",
+    ]),
+  );
   return { accounts };
 }
 
@@ -102,13 +123,23 @@ export function shapeMonthCategory(response: unknown): CategoryResult {
   return { category: shapeMonthCategoryRecord(parsed.data.category) };
 }
 
-export function shapeTransactions(response: unknown, filters: TransactionFilters): TransactionsResult {
-  const parsed = parseYnabResponse(transactionsContainerSchema, response, "list transactions container");
+export function shapeTransactions(
+  response: unknown,
+  filters: TransactionFilters,
+): TransactionsResult {
+  const parsed = parseYnabResponse(
+    transactionsContainerSchema,
+    response,
+    "list transactions container",
+  );
   const emittedTransactions = parsed.data.transactions
     .filter((transaction) => matchesTransactionFilters(transaction, filters))
     .slice(0, filters.limit);
-  const transactions = parseYnabResponse(transactionSchema.array(), emittedTransactions, "list transactions records")
-    .map(shapeTransactionRecord);
+  const transactions = parseYnabResponse(
+    transactionSchema.array(),
+    emittedTransactions,
+    "list transactions records",
+  ).map(shapeTransactionRecord);
   return { transactions };
 }
 
@@ -122,8 +153,15 @@ export function shapeTransactionWrite(response: unknown): TransactionResult {
   return { transaction: shapeTransactionRecord(parsed.data.transaction) };
 }
 
-export function shapeScheduledTransactions(response: unknown, limit: number): ScheduledTransactionsResult {
-  const parsed = parseYnabResponse(scheduledTransactionsContainerSchema, response, "list scheduled transactions container");
+export function shapeScheduledTransactions(
+  response: unknown,
+  limit: number,
+): ScheduledTransactionsResult {
+  const parsed = parseYnabResponse(
+    scheduledTransactionsContainerSchema,
+    response,
+    "list scheduled transactions container",
+  );
   const emittedScheduledTransactions = parsed.data.scheduled_transactions.slice(0, limit);
   const scheduledTransactions = parseYnabResponse(
     scheduledTransactionSchema.array(),
@@ -134,13 +172,25 @@ export function shapeScheduledTransactions(response: unknown, limit: number): Sc
 }
 
 export function shapeScheduledTransaction(response: unknown): ScheduledTransactionResult {
-  const parsed = parseYnabResponse(scheduledTransactionResponseSchema, response, "scheduled transaction");
-  return { scheduled_transaction: shapeScheduledTransactionRecord(parsed.data.scheduled_transaction) };
+  const parsed = parseYnabResponse(
+    scheduledTransactionResponseSchema,
+    response,
+    "scheduled transaction",
+  );
+  return {
+    scheduled_transaction: shapeScheduledTransactionRecord(parsed.data.scheduled_transaction),
+  };
 }
 
 export function shapeScheduledTransactionWrite(response: unknown): ScheduledTransactionResult {
-  const parsed = parseYnabResponse(scheduledTransactionWriteResponseSchema, response, "scheduled transaction write");
-  return { scheduled_transaction: shapeScheduledTransactionRecord(parsed.data.scheduled_transaction) };
+  const parsed = parseYnabResponse(
+    scheduledTransactionWriteResponseSchema,
+    response,
+    "scheduled transaction write",
+  );
+  return {
+    scheduled_transaction: shapeScheduledTransactionRecord(parsed.data.scheduled_transaction),
+  };
 }
 
 export type TransactionFilters = {
@@ -180,7 +230,16 @@ function shapePayeeRecord(payee: JsonRecord): JsonRecord {
 }
 
 function shapeMonthSummaryRecord(month: JsonRecord): JsonRecord {
-  return pick(month, ["month", "note", "income", "budgeted", "activity", "to_be_budgeted", "age_of_money", "deleted"]);
+  return pick(month, [
+    "month",
+    "note",
+    "income",
+    "budgeted",
+    "activity",
+    "to_be_budgeted",
+    "age_of_money",
+    "deleted",
+  ]);
 }
 
 function shapeMonthCategoryRecord(category: JsonRecord): JsonRecord {
@@ -205,7 +264,7 @@ function shapeTransactionRecord(transaction: JsonRecord): JsonRecord {
     "transfer_account_id",
     "deleted",
   ]);
-  const subtransactions = transaction.subtransactions;
+  const subtransactions = transaction["subtransactions"];
   return Array.isArray(subtransactions) && subtransactions.length > 0
     ? { ...shaped, subtransactions: subtransactions.map(shapeSubtransactionRecord) }
     : shaped;
@@ -229,7 +288,7 @@ function shapeScheduledTransactionRecord(scheduledTransaction: JsonRecord): Json
     "transfer_account_id",
     "deleted",
   ]);
-  const subtransactions = scheduledTransaction.subtransactions;
+  const subtransactions = scheduledTransaction["subtransactions"];
   return Array.isArray(subtransactions) && subtransactions.length > 0
     ? { ...shaped, subtransactions: subtransactions.map(shapeSubtransactionRecord) }
     : shaped;
@@ -258,16 +317,21 @@ function matchesTransactionFilters(transaction: unknown, filters: TransactionFil
 }
 
 function matchesFilters(transaction: JsonRecord, filters: TransactionFilters): boolean {
-  if (filters.accountId && transaction.account_id !== filters.accountId) {
+  if (filters.accountId && transaction["account_id"] !== filters.accountId) {
     return false;
   }
-  if (filters.categoryId && transaction.category_id !== filters.categoryId) {
+  if (filters.categoryId && transaction["category_id"] !== filters.categoryId) {
     return false;
   }
   if (!filters.query) {
     return true;
   }
-  const haystack = [transaction.memo, transaction.payee_name, transaction.category_name, transaction.account_name]
+  const haystack = [
+    transaction["memo"],
+    transaction["payee_name"],
+    transaction["category_name"],
+    transaction["account_name"],
+  ]
     .filter((value): value is string => typeof value === "string")
     .join(" ")
     .toLowerCase();
