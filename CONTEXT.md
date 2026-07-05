@@ -34,6 +34,9 @@ _Avoid_: exposing `server_knowledge` as normal tool input; it is an internal YNA
 **Structured MCP tool error**: A tool-level MCP response with `isError: true` and a compact sanitized JSON payload for expected YNAB failures, including status, project error code, safe message, and safe upstream detail when available.
 _Avoid_: turning expected upstream YNAB statuses into opaque internal failures or returning/logging YNAB tokens, owner passphrases, OAuth codes, or bearer tokens in error text.
 
+**Unexpected YNAB response shape**: A successful upstream YNAB response whose JSON body does not match the compact slice this connector knows how to shape. Treat it as a safe structured MCP tool error with response label and issue paths, not as an opaque internal failure or raw-body echo.
+_Avoid_: including raw upstream response bodies in shape-error payloads because they may contain personal financial data or secrets.
+
 **Connector auth**: Authentication between Claude and this MCP server. It is separate from the YNAB credential. It exists to prevent arbitrary internet clients from using the owner's server-side YNAB credential.
 
 **Private MCP OAuth**: The personal connector-auth mechanism for this server: an MCP-compatible OAuth authorization-code flow with PKCE, gated by an owner-controlled passphrase, issuing bearer tokens for Claude to call this MCP server.

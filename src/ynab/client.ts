@@ -518,14 +518,15 @@ async function readJsonBody(response: Response): Promise<unknown> {
 }
 
 function retryAfterSeconds(value: string | null): number | undefined {
-  if (!value) {
+  const trimmed = value?.trim();
+  if (!trimmed) {
     return undefined;
   }
-  const seconds = Number(value);
-  if (Number.isFinite(seconds) && seconds >= 0) {
-    return seconds;
+  const seconds = Number(trimmed);
+  if (Number.isFinite(seconds)) {
+    return seconds >= 0 ? seconds : undefined;
   }
-  const dateMs = Date.parse(value);
+  const dateMs = Date.parse(trimmed);
   if (!Number.isFinite(dateMs)) {
     return undefined;
   }

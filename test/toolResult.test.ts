@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 import { YnabApiError } from "../src/ynab/client.js";
 import { ynabApiErrorPayload, ynabResult } from "../src/tools/result.js";
 import { shapePlans } from "../src/tools/shaping.js";
-import { YnabResponseShapeError } from "../src/tools/ynabResponseSchemas.js";
 
 describe("tool result error shaping", () => {
   it.each([
@@ -45,6 +44,18 @@ describe("tool result error shaping", () => {
     });
   });
 
+  it("omits retry guidance when upstream retry-after is unusable", () => {
+    const payload = ynabApiErrorPayload(
+      new YnabApiError("rate limited", 429, { error: { detail: "Slow down" } }),
+    );
+
+    expect(payload.error).toMatchObject({
+      code: "ynab_rate_limited",
+      status: 429,
+    });
+    expect(payload.error).not.toHaveProperty("retry_after_seconds");
+  });
+
   it("redacts secret-looking upstream text before returning it", () => {
     const payload = ynabApiErrorPayload(
       new YnabApiError("bad request", 400, {
@@ -64,6 +75,34 @@ describe("tool result error shaping", () => {
     expect(payload.error.detail).toContain("Bearer [REDACTED]");
   });
 
+  it("returns sanitized detail for non-JSON upstream error bodies", () => {
+    const payload = ynabApiErrorPayload(
+      new YnabApiError(
+        "bad gateway",
+        502,
+        "upstream proxy leaked Authorization: Bearer ynab-secret-token",
+      ),
+    );
+
+    expect(payload.error).toMatchObject({
+      source: "ynab",
+      code: "ynab_unavailable",
+      status: 502,
+      detail: "upstream proxy leaked Authorization: Bearer [REDACTED]",
+    });
+  });
+
+  it("omits detail for empty upstream error bodies", () => {
+    const payload = ynabApiErrorPayload(new YnabApiError("unavailable", 503, null));
+
+    expect(payload.error).toMatchObject({
+      source: "ynab",
+      code: "ynab_unavailable",
+      status: 503,
+    });
+    expect(payload.error).not.toHaveProperty("detail");
+  });
+
   it("returns YNAB failures as structured MCP tool errors", async () => {
     const result = await ynabResult(
       Promise.reject(new YnabApiError("missing", 404, { error: { detail: "No such category" } })),
@@ -79,9 +118,24 @@ describe("tool result error shaping", () => {
       result.structuredContent,
     );
   });
-  it("does not convert shaped-output validation failures into structured YNAB API errors", async () => {
-    await expect(ynabResult(Promise.resolve({ data: {} }), shapePlans)).rejects.toBeInstanceOf(
-      YnabResponseShapeError,
+  it("returns shaped-output validation failures as structured MCP tool errors", async () => {
+    const result = await ynabResult(Promise.resolve({ data: {} }), shapePlans);
+
+    expect(result.isError).toBe(true);
+    expect(result.structuredContent).toEqual({
+      error: {
+        source: "ynab",
+        code: "ynab_unexpected_response",
+        message:
+          "YNAB returned an unexpected response shape. The server owner should update this connector before retrying.",
+        response_label: "list plans",
+        issue_paths: ["data.plans"],
+      },
+    });
+    const first = result.content[0];
+    expect(first?.type).toBe("text");
+    expect(JSON.parse(first?.type === "text" ? first.text : "{}") as unknown).toEqual(
+      result.structuredContent,
     );
   });
 });
